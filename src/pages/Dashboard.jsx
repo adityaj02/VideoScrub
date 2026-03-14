@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { supabase } from "../lib/supabase";
 
 import Sidebar from "../components/layout/Sidebar";
 import Navbar from "../components/layout/Navbar";
@@ -22,6 +23,7 @@ export default function Dashboard() {
   const [cartItems, setCartItems] = useState([]);
   const [currentView, setCurrentView] = useState('home'); // Now defaults directly to 'home' because Dashboard only runs authenticated!
   const [selectedService, setSelectedService] = useState(null);
+  const [userInitials, setUserInitials] = useState('B');
 
   const detectLocationInstantly = () => {
     if (!("geolocation" in navigator)) {
@@ -48,6 +50,28 @@ export default function Dashboard() {
     detectLocationInstantly();
   }, []);
 
+
+
+  useEffect(() => {
+    const loadUserInitials = async () => {
+      const { data } = await supabase.auth.getUser();
+      const user = data?.user;
+      if (!user) return;
+
+      const localName = localStorage.getItem(`profile_name:${user.id}`);
+      const rawName = localName || user.user_metadata?.name || user.user_metadata?.full_name || user.email || 'B';
+      const initials = rawName
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map(part => part[0]?.toUpperCase())
+        .join('') || 'B';
+
+      setUserInitials(initials);
+    };
+
+    loadUserInitials();
+  }, []);
 
 
   useEffect(() => {
@@ -135,6 +159,7 @@ export default function Dashboard() {
               toggleTheme={toggleTheme}
               theme={theme}
               setCurrentView={setCurrentView}
+              userInitials={userInitials}
             />
 
           {currentView === 'home' && (
@@ -416,6 +441,7 @@ export default function Dashboard() {
               removeFromCart={removeFromCart}
               theme={theme}
               setCurrentView={setCurrentView}
+              userInitials={userInitials}
             />
           )}
 

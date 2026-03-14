@@ -111,6 +111,14 @@ body,
     line-height: 1;
 }
 
+.brand-mark {
+    display: inline-block;
+    font-weight: 900;
+    color: #ffffff;
+    text-shadow: 0 0 16px rgba(59, 130, 246, 0.6), 0 0 40px rgba(59, 130, 246, 0.35);
+    letter-spacing: -0.04em;
+}
+
 .brand-sub {
     font-size: 10px;
     text-transform: uppercase;
@@ -506,7 +514,7 @@ body,
 }
 
 /* ── CTA Button ───────────────────────────────────────────────── */
-.hero-btn {
+ .hero-btn {
     display: inline-flex;
     align-items: center;
     gap: 10px;
@@ -531,6 +539,27 @@ body,
     position: relative;
     overflow: hidden;
     margin-bottom: 56px;
+}
+
+.hero-get-started-btn {
+    position: relative;
+    isolation: isolate;
+}
+
+.hero-get-started-video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: -2;
+    opacity: 0.5;
+}
+
+.hero-get-started-btn span,
+.hero-get-started-btn svg {
+    position: relative;
+    z-index: 3;
 }
 
 .hero-btn::before {
@@ -620,4 +649,4 @@ body,
     .hero-title {
         font-size: 144px;
     }
-}
+}
