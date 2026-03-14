@@ -3,9 +3,9 @@ import "../styles/global.css";
 import VideoBackground from "../components/background/VideoBackground";
 import Login from "./Login";
 
-export default function Landing() {
+export default function Landing({ initialLoginOpen = false }) {
   const [phase, setPhase] = useState(0); // 0=hidden, 1=title, 2=subtitle, 3=button
-  const [openLogin, setOpenLogin] = useState(false);
+  const [openLogin, setOpenLogin] = useState(initialLoginOpen);
 
   useEffect(() => {
         // Staggered entrance animation
@@ -15,13 +15,17 @@ export default function Landing() {
         return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
     }, []);
 
+    useEffect(() => {
+        setOpenLogin(initialLoginOpen);
+    }, [initialLoginOpen]);
+
 
 
     return (
         <div className="hero">
 
             {/* ── Background Video is rendered here for unauthenticated state ── */}
-            <VideoBackground theme="dark" currentView={openLogin ? "login" : "landing"} />
+            <VideoBackground theme="dark" />
 
             {/* ── Layered dark overlays for depth ── */}
             <div className="hero-overlay-base" />

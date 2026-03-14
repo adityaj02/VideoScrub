@@ -1,4 +1,4 @@
-export default function Sidebar({ currentView, setCurrentView, cartItems, theme }) {
+export default function Sidebar({ currentView, setCurrentView, cartItems, theme, onLogout }) {
     const colors = {
         glass: theme === 'dark' ? 'bg-white/[0.04] border-white/10 shadow-lg' : 'bg-white/90 border-black/5 shadow-md',
         text: theme === 'dark' ? 'text-white' : 'text-[#1d1d1f]',
@@ -31,7 +31,7 @@ export default function Sidebar({ currentView, setCurrentView, cartItems, theme 
                     ))}
                 </div>
             </div>
-            <button className={`flex items-center gap-4 lg:px-4 py-3 rounded-2xl transition-all hover:bg-red-500/10 group ${theme === 'dark' ? 'text-white/40' : 'text-black/40'} hover:text-red-500`}>
+            <button onClick={onLogout} className={`flex items-center gap-4 lg:px-4 py-3 rounded-2xl transition-all hover:bg-red-500/10 group ${theme === 'dark' ? 'text-white/40' : 'text-black/40'} hover:text-red-500`}>
                 <div className="w-10 h-10 rounded-xl glass border border-transparent flex items-center justify-center font-bold">⏻</div>
                 <span className="text-[10px] uppercase tracking-widest font-bold hidden lg:block text-left">Log Out</span>
             </button>
