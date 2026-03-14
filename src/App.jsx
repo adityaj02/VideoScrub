@@ -11,8 +11,24 @@ export default function App() {
   const [profileComplete, setProfileComplete] = useState(false);
 
   useEffect(() => {
+    const getLocalProfileComplete = (userId) => {
+      if (!userId) return false;
+      return localStorage.getItem(`profile_complete:${userId}`) === "true";
+    };
+
+    const setLocalProfileComplete = (userId, complete) => {
+      if (!userId) return;
+      localStorage.setItem(`profile_complete:${userId}`, complete ? "true" : "false");
+    };
+
     const checkProfile = async (user) => {
       if (!user) return;
+
+      if (getLocalProfileComplete(user.id)) {
+        setProfileComplete(true);
+        return;
+      }
+
       try {
         const apiUrl = import.meta.env.VITE_API_URL;
         if (apiUrl) {
@@ -20,13 +36,17 @@ export default function App() {
           if (res.ok) {
             const data = await res.json();
             // If the user object returned has necessary details, count as complete
-            setProfileComplete(!!data && !!data.name);
+            const complete = !!data && !!data.name;
+            setProfileComplete(complete);
+            setLocalProfileComplete(user.id, complete);
           } else {
             setProfileComplete(false);
           }
+        } else {
+          setProfileComplete(false);
         }
       } catch (err) {
-        console.warn("Profile API unavailable, assuming incomplete:", err.message);
+        console.warn("Profile API unavailable. Using local profile state:", err.message);
         setProfileComplete(false);
       }
     };
