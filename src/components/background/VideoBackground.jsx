@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-export default function VideoBackground({ theme, currentView }) {
+export default function VideoBackground({ theme }) {
   const videoRef = useRef(null);
 
   useEffect(() => {

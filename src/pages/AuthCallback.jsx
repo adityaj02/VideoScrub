@@ -17,7 +17,7 @@ export default function AuthCallback() {
             }
         };
         handleAuth();
-    }, []);
+    }, [navigate]);
 
     return (
         <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", zIndex: 50, padding: "20px" }}>
