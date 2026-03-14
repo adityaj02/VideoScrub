@@ -19,17 +19,14 @@ import { TESTIMONIALS } from "../data/testimonials";
 export default function Dashboard() {
   const [theme, setTheme] = useState('dark');
   const [activeIdx, setActiveIdx] = useState(0);
-  const [location, setLocation] = useState("Detecting...");
+  const [location, setLocation] = useState(() => ("geolocation" in navigator ? "Detecting..." : "Delhi Hub"));
   const [cartItems, setCartItems] = useState([]);
   const [currentView, setCurrentView] = useState('home'); // Now defaults directly to 'home' because Dashboard only runs authenticated!
   const [selectedService, setSelectedService] = useState(null);
   const [userInitials, setUserInitials] = useState('B');
 
   const detectLocationInstantly = () => {
-    if (!("geolocation" in navigator)) {
-      setLocation("Delhi Hub");
-      return;
-    }
+    if (!("geolocation" in navigator)) return;
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         try {
@@ -37,7 +34,7 @@ export default function Dashboard() {
           const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
           const data = await res.json();
           setLocation(data.address.city || data.address.town || data.address.suburb || "Delhi NCR");
-        } catch (e) {
+        } catch {
           setLocation("New Delhi, IN");
         }
       },
