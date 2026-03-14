@@ -1,0 +1,6 @@
+export const BLOG_POSTS = [
+  { id: 1, cat: 'Plumbing', readTime: '10 min read', date: 'Feb 20, 2026', title: 'Best Plumber in Lajpat Nagar – Fast, Reliable & Affordable Plumbing Services', view: 'plumbing-post', img: 'https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&q=80&w=800' },
+  { id: 2, cat: 'Deep Cleaning', readTime: '8 min read', date: 'Dec 15, 2025', title: 'Best Deep Cleaning Services in Delhi - Trusted Experts at Boys@Work', view: 'deep-cleaning-post', img: 'https://images.unsplash.com/photo-1581578731522-a204e14a2cd2?auto=format&fit=crop&q=80&w=800' },
+  { id: 3, cat: 'Home Maintenance', readTime: '5 min read', date: 'Nov 20, 2025', title: 'Essential Home Maintenance Tips for Delhi Monsoon Season', view: 'monsoon-post', img: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&q=80&w=800' },
+  { id: 4, cat: 'AC Service', readTime: '6 min read', date: 'Oct 10, 2025', title: 'How to Choose the Right AC Service Provider in Delhi', view: 'ac-post', img: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&q=80&w=800' },
+];
