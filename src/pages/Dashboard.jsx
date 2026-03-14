@@ -83,6 +83,22 @@ export default function Dashboard() {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark');
   };
 
+  const handleLogout = async () => {
+    try {
+      const { data } = await supabase.auth.getUser();
+      const userId = data?.user?.id;
+      await supabase.auth.signOut();
+      if (userId) {
+        localStorage.removeItem(`profile_complete:${userId}`);
+        localStorage.removeItem(`profile_name:${userId}`);
+      }
+    } catch (error) {
+      console.warn("Logout failed:", error.message);
+    } finally {
+      window.location.assign("/login");
+    }
+  };
+
   const addToCart = (service) => {
     if (cartItems.some(item => item.id === service.id)) {
       setCurrentView('cart');
@@ -148,6 +164,7 @@ export default function Dashboard() {
             setCurrentView={setCurrentView}
             cartItems={cartItems}
             theme={theme}
+            onLogout={handleLogout}
           />
 
           <div className="flex-1 h-screen overflow-y-auto relative bg-transparent ml-20 lg:ml-64 custom-scroll">

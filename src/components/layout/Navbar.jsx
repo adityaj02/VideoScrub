@@ -18,21 +18,18 @@ export default function Navbar({ location, toggleTheme, theme, setCurrentView, u
     };
 
     return (
-        <nav className="w-full px-6 lg:px-12 py-6 grid grid-cols-3 items-center z-[95] shrink-0 sticky top-0 glass border-b border-white/5 h-24 shadow-2xl">
-            <div className="flex items-center gap-3 text-left">
-                <div className={`w-11 h-11 rounded-full glass border flex items-center justify-center ${colors.glass}`}>
-                    <span className={`text-[13px] font-black tracking-tight ${colors.text}`}>{userInitials}</span>
-                </div>
-                <div className="flex flex-col">
-                    <h2 className="text-xl font-bold premium-text tracking-tighter uppercase leading-none">Hub Stage</h2>
+        <nav className="w-full px-4 lg:px-12 py-4 lg:py-6 grid grid-cols-[1fr_auto_auto] items-center gap-3 lg:gap-6 z-[95] shrink-0 sticky top-0 glass border-b border-white/5 min-h-20 shadow-2xl">
+            <div className="flex items-center gap-3 text-left min-w-0">
+                <div className="flex flex-col min-w-0">
+                    <h2 className="text-lg lg:text-xl font-bold premium-text tracking-tighter uppercase leading-none truncate">Hub Stage</h2>
                     <div className="flex items-center gap-2 mt-2">
                         <div className={`w-1.5 h-1.5 rounded-full ${location === 'Detecting...' ? 'bg-zinc-500' : 'bg-green-500'} animate-pulse`}></div>
-                        <span className={`text-[9px] uppercase tracking-[0.2em] ${colors.subtext} font-bold italic`}>{location}</span>
+                        <span className={`text-[9px] uppercase tracking-[0.2em] ${colors.subtext} font-bold italic truncate`}>{location}</span>
                     </div>
                 </div>
             </div>
 
-            <div className="flex justify-center">
+            <div className="hidden xl:flex justify-center">
                 <div className="flex items-center gap-3 p-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-xl">
                     {[
                         { label: 'Services', action: () => setCurrentView('services') },
@@ -51,10 +48,13 @@ export default function Navbar({ location, toggleTheme, theme, setCurrentView, u
                 </div>
             </div>
 
-            <div className="flex items-center justify-end gap-4">
+            <div className="flex items-center justify-end gap-3 lg:gap-4">
                 <button onClick={toggleTheme} className={`glass px-4 lg:px-5 py-2 rounded-full text-[9px] font-bold uppercase tracking-widest transition-all hover:scale-110 active:scale-90 ${colors.text} ${colors.glass}`}>
                     {theme === 'dark' ? 'Ivory' : 'Reflective'}
                 </button>
+                <div className={`w-10 h-10 lg:w-11 lg:h-11 rounded-full glass border flex items-center justify-center ${colors.glass}`} aria-label="User initials">
+                    <span className={`text-[12px] lg:text-[13px] font-black tracking-tight ${colors.text}`}>{userInitials}</span>
+                </div>
             </div>
         </nav>
     );

@@ -82,7 +82,8 @@ export default function App() {
   }
 
   if (!session) {
-    return <Landing />;
+    const isLoginPage = window.location.pathname === "/login";
+    return <Landing initialLoginOpen={isLoginPage} />;
   }
 
   if (session && !profileComplete) {
