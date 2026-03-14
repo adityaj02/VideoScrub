@@ -34,6 +34,7 @@ export default function Profile({ onComplete }) {
         }
 
         localStorage.setItem(`profile_complete:${data.user.id}`, "true");
+        localStorage.setItem(`profile_name:${data.user.id}`, name);
         onComplete?.();
     };
 

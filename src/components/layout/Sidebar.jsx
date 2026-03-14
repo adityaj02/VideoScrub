@@ -9,8 +9,8 @@ export default function Sidebar({ currentView, setCurrentView, cartItems, theme 
         <aside className={`w-20 lg:w-64 h-screen glass border-r transition-all duration-700 z-[100] flex flex-col justify-between py-10 px-4 shrink-0 ${colors.glass} fixed left-0 top-0 shadow-lg`}>
             <div className="flex flex-col gap-12">
                 <div className="flex flex-col items-center lg:items-start lg:px-4 cursor-pointer" onClick={() => setCurrentView('home')}>
-                    <div className="text-xl font-black premium-text uppercase tracking-tighter hidden lg:block">B@W</div>
-                    <div className={`w-8 h-8 rounded-full lg:hidden flex items-center justify-center font-bold text-[10px] ${theme === 'dark' ? 'bg-white/10 text-white' : 'bg-black/10 text-black'}`}>BW</div>
+                    <div className="text-xl font-black premium-text uppercase tracking-tighter hidden lg:block"><span className="brand-mark">B</span></div>
+                    <div className={`w-8 h-8 rounded-full lg:hidden flex items-center justify-center font-bold text-[10px] ${theme === 'dark' ? 'bg-white/10 text-white' : 'bg-black/10 text-black'}`}><span className="font-black text-[12px] leading-none">B</span></div>
                 </div>
                 <div className="flex flex-col gap-2">
                     {[

@@ -12,8 +12,6 @@ export default function VideoBackground({ theme, currentView }) {
     video.load();
   }, []);
 
-  const isBlurred = currentView !== 'landing';
-
   return (
     <video
       ref={videoRef}
@@ -30,7 +28,7 @@ export default function VideoBackground({ theme, currentView }) {
         objectFit: "cover",
         zIndex: -20,
         pointerEvents: "none",
-        filter: `brightness(${theme === "dark" ? "0.6" : "0.9"}) ${isBlurred ? "blur(20px)" : ""}`,
+        filter: `brightness(${theme === "dark" ? "0.6" : "0.9"})`,
         transform: "scale(1.05)",
         opacity: 1,
         transition: "filter 0.5s ease"
@@ -38,4 +36,3 @@ export default function VideoBackground({ theme, currentView }) {
     />
   );
 }
-
