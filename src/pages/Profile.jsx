@@ -33,8 +33,8 @@ export default function Profile({ onComplete }) {
             console.warn("Profile API unavailable:", err.message);
         }
 
-        // Hard reload for App.jsx to fire database check again
-        window.location.reload();
+        localStorage.setItem(`profile_complete:${data.user.id}`, "true");
+        onComplete?.();
     };
 
     return (
