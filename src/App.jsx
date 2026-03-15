@@ -7,7 +7,6 @@ import Dashboard from "./pages/Dashboard";
 
 export default function App() {
   const [session, setSession] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [profileComplete, setProfileComplete] = useState(false);
 
   useEffect(() => {
@@ -16,54 +15,25 @@ export default function App() {
       return localStorage.getItem(`profile_complete:${userId}`) === "true";
     };
 
-    const setLocalProfileComplete = (userId, complete) => {
-      if (!userId) return;
-      localStorage.setItem(`profile_complete:${userId}`, complete ? "true" : "false");
-    };
-
     const resetAuthState = () => {
       setSession(null);
       setProfileComplete(false);
-      setLoading(false);
     };
 
-    const checkProfile = async (user) => {
+    const checkProfile = (user) => {
       if (!user) {
         setProfileComplete(false);
         return;
       }
 
-      if (getLocalProfileComplete(user.id)) {
-        setProfileComplete(true);
-        return;
-      }
-
-      try {
-        const apiUrl = import.meta.env.VITE_API_URL;
-        if (apiUrl) {
-          const res = await fetch(`${apiUrl}/api/users/${user.id}`);
-          if (res.ok) {
-            const data = await res.json();
-            const complete = !!data && !!data.name && !!data.phone;
-            setProfileComplete(complete);
-            setLocalProfileComplete(user.id, complete);
-          } else {
-            setProfileComplete(false);
-          }
-        } else {
-          setProfileComplete(false);
-        }
-      } catch (err) {
-        console.warn("Profile API unavailable. Using local profile state:", err.message);
-        setProfileComplete(false);
-      }
+      setProfileComplete(getLocalProfileComplete(user.id));
     };
 
     supabase.auth.getSession().then(({ data }) => {
       const currentSession = data.session;
       setSession(currentSession);
       if (currentSession?.user) {
-        checkProfile(currentSession.user).finally(() => setLoading(false));
+        checkProfile(currentSession.user);
       } else {
         resetAuthState();
       }
@@ -72,8 +42,7 @@ export default function App() {
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (session?.user) {
-        setLoading(true);
-        checkProfile(session.user).finally(() => setLoading(false));
+        checkProfile(session.user);
       } else {
         resetAuthState();
       }
@@ -83,14 +52,6 @@ export default function App() {
       listener.subscription.unsubscribe();
     };
   }, []);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#0b0b0c] flex items-center justify-center text-white/40 text-sm font-sans tracking-widest uppercase">
-        Verifying Session...
-      </div>
-    );
-  }
 
   if (!session) {
     const path = window.location.pathname;
