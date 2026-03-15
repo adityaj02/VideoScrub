@@ -23,9 +23,10 @@ Create a `profiles` table (SQL editor in Supabase):
 create table if not exists public.profiles (
   user_id uuid primary key references auth.users(id) on delete cascade,
   email text,
-  name text not null,
+  name text,
   phone text,
-  updated_at timestamptz default now()
+  location text,
+  created_at timestamptz default now()
 );
 
 alter table public.profiles enable row level security;

@@ -22,7 +22,7 @@ export default function App() {
       setCheckingProfile(true);
 
       try {
-        const profile = await getUserProfile({ userId: user.id, email: user.email });
+        const profile = await getUserProfile({ userId: user.id });
         const hasProfile = Boolean(profile?.name);
         setProfileComplete(hasProfile);
 
