@@ -28,13 +28,10 @@ function normalizeProfile(row, source) {
 }
 
 async function readFromPrimary(userId) {
-  const { data, error } = await supabase
-    .from(PRIMARY_TABLE)
-export async function getUserProfile(userId) {
   if (!userId) return null;
 
   const { data, error } = await supabase
-    .from("profiles")
+    .from(PRIMARY_TABLE)
     .select("user_id,name,phone,email")
     .eq("user_id", userId)
     .maybeSingle();
@@ -81,14 +78,6 @@ export async function getUserProfile({ userId, email }) {
 }
 
 async function saveToPrimary({ userId, email, name, phone }) {
-  if (error) {
-    throw error;
-  }
-
-  return data;
-}
-
-export async function saveUserProfile({ userId, email, name, phone }) {
   const payload = {
     user_id: userId,
     email,
@@ -138,9 +127,4 @@ export async function saveUserProfile(profileInput) {
   }
 
   await saveToLegacy(profileInput);
-  const { error } = await supabase.from("profiles").upsert(payload, { onConflict: "user_id" });
-
-  if (error) {
-    throw error;
-  }
 }
