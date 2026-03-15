@@ -21,8 +21,17 @@ export default function App() {
       localStorage.setItem(`profile_complete:${userId}`, complete ? "true" : "false");
     };
 
+    const resetAuthState = () => {
+      setSession(null);
+      setProfileComplete(false);
+      setLoading(false);
+    };
+
     const checkProfile = async (user) => {
-      if (!user) return;
+      if (!user) {
+        setProfileComplete(false);
+        return;
+      }
 
       if (getLocalProfileComplete(user.id)) {
         setProfileComplete(true);
@@ -35,8 +44,7 @@ export default function App() {
           const res = await fetch(`${apiUrl}/api/users/${user.id}`);
           if (res.ok) {
             const data = await res.json();
-            // If the user object returned has necessary details, count as complete
-            const complete = !!data && !!data.name;
+            const complete = !!data && !!data.name && !!data.phone;
             setProfileComplete(complete);
             setLocalProfileComplete(user.id, complete);
           } else {
@@ -52,11 +60,12 @@ export default function App() {
     };
 
     supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      if (data.session?.user) {
-        checkProfile(data.session.user).finally(() => setLoading(false));
+      const currentSession = data.session;
+      setSession(currentSession);
+      if (currentSession?.user) {
+        checkProfile(currentSession.user).finally(() => setLoading(false));
       } else {
-        setLoading(false);
+        resetAuthState();
       }
     });
 
@@ -65,6 +74,8 @@ export default function App() {
       if (session?.user) {
         setLoading(true);
         checkProfile(session.user).finally(() => setLoading(false));
+      } else {
+        resetAuthState();
       }
     });
 
@@ -82,8 +93,9 @@ export default function App() {
   }
 
   if (!session) {
-    const isLoginPage = window.location.pathname === "/login";
-    return <Landing initialLoginOpen={isLoginPage} />;
+    const path = window.location.pathname;
+    const shouldOpenLogin = path === "/login";
+    return <Landing initialLoginOpen={shouldOpenLogin} />;
   }
 
   if (session && !profileComplete) {
