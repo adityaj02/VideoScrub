@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "../lib/supabase";
+import { getUserProfile } from "../lib/profile";
 
 import Sidebar from "../components/layout/Sidebar";
 import Navbar from "../components/layout/Navbar";
@@ -56,14 +57,22 @@ export default function Dashboard() {
       const user = data?.user;
       if (!user) return;
 
+      let profileName = "";
+      try {
+        const profile = await getUserProfile({ userId: user.id, email: user.email });
+        profileName = profile?.name || "";
+      } catch (error) {
+        console.warn("Unable to read profile for initials.", error);
+      }
+
       const localName = localStorage.getItem(`profile_name:${user.id}`);
-      const rawName = localName || user.user_metadata?.name || user.user_metadata?.full_name || user.email || 'B';
+      const rawName = profileName || localName || user.user_metadata?.name || user.user_metadata?.full_name || user.email || "B";
       const initials = rawName
-        .split(' ')
+        .split(" ")
         .filter(Boolean)
         .slice(0, 2)
-        .map(part => part[0]?.toUpperCase())
-        .join('') || 'B';
+        .map((part) => part[0]?.toUpperCase())
+        .join("") || "B";
 
       setUserInitials(initials);
     };
