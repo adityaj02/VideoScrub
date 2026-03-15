@@ -37,7 +37,7 @@ export default function Profile({ onComplete }) {
     try {
       const apiUrl = import.meta.env.VITE_API_URL;
       if (apiUrl) {
-        await fetch(`${apiUrl}/api/users`, {
+        const response = await fetch(`${apiUrl}/api/users`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -47,9 +47,15 @@ export default function Profile({ onComplete }) {
             phone: normalizedPhone,
           }),
         });
+
+        if (!response.ok) {
+          throw new Error("Unable to save profile right now. Please try again.");
+        }
       }
     } catch (err) {
-      console.warn("Profile API unavailable:", err.message);
+      setLoading(false);
+      setErrorMessage(err.message || "Unable to save profile right now. Please try again.");
+      return;
     }
 
     localStorage.setItem(`profile_complete:${data.user.id}`, "true");
@@ -61,7 +67,7 @@ export default function Profile({ onComplete }) {
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", zIndex: 50, padding: "16px", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
-      <VideoBackground theme="dark" />
+      <VideoBackground theme="dark" blur={20} brightness={0.65} />
       <ThreeScene theme="dark" />
       <div
         style={{

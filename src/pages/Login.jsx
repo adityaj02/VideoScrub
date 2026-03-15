@@ -21,7 +21,7 @@ export default function Login({ close }) {
     const { error } = await supabase.auth.signInWithOtp({
       email: normalizedEmail,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: window.location.origin,
       },
     });
 
@@ -37,8 +37,8 @@ export default function Login({ close }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-3xl">
-      <div className="glass relative w-full max-w-[420px] overflow-hidden rounded-[32px] p-6 text-white shadow-2xl sm:p-10 md:p-12">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-[20px]">
+      <div className="glass relative w-full max-w-[420px] overflow-hidden rounded-[32px] border border-white/20 bg-white/[0.1] p-6 text-white shadow-2xl sm:p-10 md:p-12">
         <div className="pointer-events-none absolute inset-0 bg-blue-500/10" />
 
         <div className="relative z-10">

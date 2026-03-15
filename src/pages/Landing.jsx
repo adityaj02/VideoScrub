@@ -25,7 +25,7 @@ export default function Landing({ initialLoginOpen = false }) {
         <div className="hero">
 
             {/* ── Background Video is rendered here for unauthenticated state ── */}
-            <VideoBackground theme="dark" />
+            <VideoBackground theme="dark" blur={openLogin ? 20 : 8} brightness={0.75} />
 
             {/* ── Layered dark overlays for depth ── */}
             <div className="hero-overlay-base" />
@@ -42,7 +42,7 @@ export default function Landing({ initialLoginOpen = false }) {
 
                 {/* Main Title */}
                 <h1 className={`hero-title ${phase >= 1 ? "hero-item-in" : "hero-item-out-up"}`}>
-                    Boys@Work
+                    BOYS@WORK
                 </h1>
 
                 {/* Subtitle */}
@@ -77,4 +77,3 @@ export default function Landing({ initialLoginOpen = false }) {
         </div>
     );
 }
-

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-export default function VideoBackground({ theme }) {
+export default function VideoBackground({ theme, blur = 0, brightness, opacity = 1 }) {
   const videoRef = useRef(null);
 
   useEffect(() => {
@@ -28,9 +28,9 @@ export default function VideoBackground({ theme }) {
         objectFit: "cover",
         zIndex: -20,
         pointerEvents: "none",
-        filter: `brightness(${theme === "dark" ? "0.6" : "0.9"})`,
+        filter: `blur(${blur}px) brightness(${brightness ?? (theme === "dark" ? 0.7 : 0.9)})`,
         transform: "scale(1.05)",
-        opacity: 1,
+        opacity,
         transition: "filter 0.5s ease"
       }}
     />

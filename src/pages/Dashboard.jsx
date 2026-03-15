@@ -95,7 +95,7 @@ export default function Dashboard() {
     } catch (error) {
       console.warn("Logout failed:", error.message);
     } finally {
-      window.location.assign("/login");
+      window.location.assign("/");
     }
   };
 
@@ -117,7 +117,7 @@ export default function Dashboard() {
     bg: theme === 'dark' ? 'bg-[#0b0b0c]' : 'bg-[#f5f5f7]',
     text: theme === 'dark' ? 'text-white' : 'text-[#1d1d1f]',
     subtext: theme === 'dark' ? 'text-white/40' : 'text-[#6e6e73]',
-    glass: theme === 'dark' ? 'bg-white/[0.04] border-white/10 shadow-lg' : 'bg-white/90 border-black/5 shadow-md',
+    glass: theme === 'dark' ? 'bg-white/[0.10] border-white/20 shadow-2xl shadow-black/30' : 'bg-white/85 border-black/10 shadow-lg',
     cardText: theme === 'dark' ? 'text-white/60' : 'text-[#1d1d1f]/80',
     sidebarHover: theme === 'dark' ? 'hover:bg-white/5' : 'hover:bg-black/5',
   };
@@ -125,7 +125,11 @@ export default function Dashboard() {
   return (
     <>
       <style>{`
-        .glass { backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px); }
+        .glass {
+          backdrop-filter: blur(30px);
+          -webkit-backdrop-filter: blur(30px);
+          box-shadow: 0 10px 40px rgba(0,0,0,0.30);
+        }
         .premium-text {
           background: ${theme === 'dark'
           ? 'linear-gradient(180deg, #ffffff 0%, #999999 100%)'
@@ -149,13 +153,13 @@ export default function Dashboard() {
         ::-webkit-scrollbar-thumb { background: rgba(155, 155, 155, 0.3); border-radius: 10px; }
       `}</style>
       
-      <VideoBackground theme={theme} blur={25} />
+      <VideoBackground theme={theme} blur={18} brightness={theme === 'dark' ? 0.72 : 0.94} opacity={0.95} />
       <ThreeScene theme={theme} />
 
       {/* Safety overlay */}
       <div style={{
           position: "fixed", top: 0, left: 0, width: "100%", height: "100%",
-          backgroundColor: "rgba(0,0,0,0.4)", zIndex: -10, pointerEvents: "none"
+          backgroundColor: theme === 'dark' ? "rgba(0,0,0,0.28)" : "rgba(255,255,255,0.18)", zIndex: -10, pointerEvents: "none"
       }} />
 
       <div className={`relative z-40 h-screen overflow-hidden flex flex-row ${colors.bg}`}>
@@ -255,8 +259,9 @@ export default function Dashboard() {
                       </div>
                       <div className="p-10 lg:p-14 flex flex-col justify-center text-left">
                         <div className="flex items-center gap-3 mb-6 opacity-40 text-[10px] font-black uppercase tracking-widest"><span>{post.date}</span><span>•</span><span>{post.readTime}</span></div>
-                        <h3 className="text-3xl lg:text-4xl font-black premium-text tracking-tighter leading-tight mb-8 py-2 overflow-visible group-hover:text-blue-500 transition-colors text-left">{post.title}</h3>
-                        <div className="flex items-center gap-4 text-blue-500 font-black text-[12px] uppercase tracking-[0.4em] group-hover:gap-6 transition-all text-left">Read Detail <span className="text-xl">→</span></div>
+                        <h3 className="text-3xl lg:text-4xl font-black premium-text tracking-tighter leading-tight mb-4 py-2 overflow-visible group-hover:text-blue-500 transition-colors text-left">{post.title}</h3>
+                        <p className={`mb-6 text-sm leading-relaxed ${colors.cardText}`}>{post.excerpt}</p>
+                        <div className="flex items-center gap-4 text-blue-500 font-black text-[12px] uppercase tracking-[0.4em] group-hover:gap-6 transition-all text-left">Read More <span className="text-xl">→</span></div>
                       </div>
                     </div>
                   ))}
@@ -356,11 +361,15 @@ export default function Dashboard() {
                 <div className="space-y-16 text-left text-left text-left">
                   {BLOG_POSTS.map((post) => (
                     <div key={post.id} onClick={() => { setCurrentView(post.view); window.scrollTo({ top: 0, behavior: 'smooth' }) }} className={`glass rounded-[64px] border ${colors.glass} overflow-hidden flex flex-col md:flex-row group cursor-pointer hover:scale-[1.01] transition-all shadow-xl text-left text-left`}>
-                      <div className="w-full md:w-[40%] h-64 md:h-auto overflow-hidden shrink-0 text-left"><img src={post.img} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={post.title} /></div>
+                      <div className="relative w-full md:w-[40%] h-64 md:h-auto overflow-hidden shrink-0 text-left">
+                        <img src={post.img} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={post.title} />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+                      </div>
                       <div className="w-full md:w-[60%] p-12 lg:p-16 flex flex-col justify-center text-left text-left text-left">
                         <div className="flex items-center gap-5 mb-8 text-left text-left text-left"><span className="bg-blue-600 text-white px-5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-xl shadow-blue-500/10 text-left text-left">{post.cat}</span><span className={`text-[10px] font-black uppercase tracking-widest ${colors.subtext} text-left`}>{post.date}</span></div>
-                        <h2 className="text-4xl font-black premium-text tracking-tighter leading-tight mb-8 py-2 overflow-visible group-hover:text-blue-500 transition-colors text-left text-left text-left">{post.title}</h2>
-                        <div className="flex items-center gap-4 text-blue-500 font-black text-[11px] uppercase tracking-[0.4em] text-left text-left">Full Review <span className="text-xl">→</span></div>
+                        <h2 className="text-4xl font-black premium-text tracking-tighter leading-tight mb-4 py-2 overflow-visible group-hover:text-blue-500 transition-colors text-left text-left text-left">{post.title}</h2>
+                        <p className={`mb-8 text-base leading-relaxed ${colors.cardText}`}>{post.excerpt}</p>
+                        <div className="flex items-center gap-4 text-blue-500 font-black text-[11px] uppercase tracking-[0.4em] text-left text-left">Read More <span className="text-xl">→</span></div>
                       </div>
                     </div>
                   ))}
