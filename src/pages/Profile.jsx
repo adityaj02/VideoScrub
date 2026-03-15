@@ -34,9 +34,9 @@ export default function Profile({ onComplete }) {
       return;
     }
 
-    try {
-      const apiUrl = import.meta.env.VITE_API_URL;
-      if (apiUrl) {
+    const apiUrl = import.meta.env.VITE_API_URL;
+    if (apiUrl) {
+      try {
         const response = await fetch(`${apiUrl}/api/users`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -51,11 +51,16 @@ export default function Profile({ onComplete }) {
         if (!response.ok) {
           throw new Error("Unable to save profile right now. Please try again.");
         }
+      } catch (err) {
+        const isNetworkError = err instanceof TypeError;
+        if (!isNetworkError) {
+          setLoading(false);
+          setErrorMessage(err.message || "Unable to save profile right now. Please try again.");
+          return;
+        }
+
+        console.warn("Profile API unavailable, continuing with local profile completion.", err);
       }
-    } catch (err) {
-      setLoading(false);
-      setErrorMessage(err.message || "Unable to save profile right now. Please try again.");
-      return;
     }
 
     localStorage.setItem(`profile_complete:${data.user.id}`, "true");

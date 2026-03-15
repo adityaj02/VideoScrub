@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 
 import Sidebar from "../components/layout/Sidebar";
@@ -24,6 +24,7 @@ export default function Dashboard() {
   const [currentView, setCurrentView] = useState('home'); // Now defaults directly to 'home' because Dashboard only runs authenticated!
   const [selectedService, setSelectedService] = useState(null);
   const [userInitials, setUserInitials] = useState('B');
+  const contentRef = useRef(null);
 
   const detectLocationInstantly = () => {
     if (!("geolocation" in navigator)) return;
@@ -101,7 +102,7 @@ export default function Dashboard() {
 
   const addToCart = (service) => {
     if (cartItems.some(item => item.id === service.id)) {
-      setCurrentView('cart');
+      switchView('cart', { smooth: false });
       return;
     }
     setCartItems(prev => [...prev, { ...service, cartId: Date.now() + Math.random() }]);
@@ -112,6 +113,15 @@ export default function Dashboard() {
   };
 
   const isInCart = (id) => cartItems.some(item => item.id === id);
+
+  const switchView = useCallback((view, options = {}) => {
+    const behavior = options.smooth === false ? 'auto' : 'smooth';
+    setCurrentView(view);
+    window.scrollTo({ top: 0, behavior });
+    if (contentRef.current) {
+      contentRef.current.scrollTo({ top: 0, behavior });
+    }
+  }, []);
 
   const colors = {
     bg: theme === 'dark' ? 'bg-[#0b0b0c]' : 'bg-[#f5f5f7]',
@@ -133,13 +143,21 @@ export default function Dashboard() {
         .premium-text {
           background: ${theme === 'dark'
           ? 'linear-gradient(180deg, #ffffff 0%, #999999 100%)'
-          : 'linear-gradient(180deg, #1d1d1f 0%, #4a4a4c 100%)'};
-          -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+          : 'none'};
+          color: ${theme === 'dark' ? '#ffffff' : '#111113'};
+          -webkit-background-clip: ${theme === 'dark' ? 'text' : 'border-box'};
+          -webkit-text-fill-color: ${theme === 'dark' ? 'transparent' : 'currentColor'};
+          text-shadow: ${theme === 'dark' ? '0 1px 1px rgba(0,0,0,0.35)' : 'none'};
           letter-spacing: -0.02em; padding: 0.2em 0.25em 0.35em 0.1em; margin: -0.2em -0.25em -0.35em -0.1em;
           display: inline-block; line-height: 1.1; overflow: visible; position: relative;
         }
-        .service-card-active { opacity: 1; transform: translateY(0) scale(1); filter: blur(0px); }
+        .service-card-active { opacity: 1; transform: translateY(0) scale(1); filter: blur(0px); animation: cardPop 700ms cubic-bezier(0.16, 1, 0.3, 1); }
         .service-card-hidden { opacity: 0; transform: translateY(40px) scale(0.98); filter: blur(20px); pointer-events: none; }
+        @keyframes cardPop {
+          0% { transform: translateY(18px) scale(0.96); opacity: 0.2; }
+          70% { transform: translateY(-4px) scale(1.01); opacity: 1; }
+          100% { transform: translateY(0) scale(1); opacity: 1; }
+        }
         .reflect-card { position: relative; overflow: hidden; border-width: 1px; }
         .reflect-card::after {
           content: ""; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
@@ -165,18 +183,18 @@ export default function Dashboard() {
       <div className={`relative z-40 h-screen overflow-hidden flex flex-row ${colors.bg}`}>
           <Sidebar
             currentView={currentView}
-            setCurrentView={setCurrentView}
+            setCurrentView={switchView}
             cartItems={cartItems}
             theme={theme}
             onLogout={handleLogout}
           />
 
-          <div className="flex-1 h-screen overflow-y-auto relative bg-transparent ml-20 lg:ml-64 custom-scroll">
+          <div ref={contentRef} className="flex-1 h-screen overflow-y-auto relative bg-transparent ml-20 lg:ml-64 custom-scroll">
             <Navbar
               location={location}
               toggleTheme={toggleTheme}
               theme={theme}
-              setCurrentView={setCurrentView}
+              setCurrentView={switchView}
               userInitials={userInitials}
             />
 
@@ -247,11 +265,11 @@ export default function Dashboard() {
                     <span className={`text-[11px] uppercase tracking-[0.6em] font-black ${colors.subtext} block mb-4`}>Technical Insights</span>
                     <h2 className="text-5xl lg:text-7xl font-black premium-text tracking-tighter leading-tight py-4 overflow-visible text-left">From Our Blog</h2>
                   </div>
-                  <button onClick={() => { setCurrentView('blog'); window.scrollTo({ top: 0, behavior: 'smooth' }) }} className="px-10 py-5 rounded-full bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-blue-500 shadow-xl shadow-blue-500/20 transition-all active:scale-95 whitespace-nowrap">Explore All Insights →</button>
+                  <button onClick={() => { switchView('blog'); window.scrollTo({ top: 0, behavior: 'smooth' }) }} className="px-10 py-5 rounded-full bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-blue-500 shadow-xl shadow-blue-500/20 transition-all active:scale-95 whitespace-nowrap">Explore All Insights →</button>
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                   {BLOG_POSTS.slice(0, 2).map((post) => (
-                    <div key={post.id} onClick={() => { setCurrentView(post.view); window.scrollTo({ top: 0, behavior: 'smooth' }) }} className={`glass rounded-[56px] border ${colors.glass} overflow-hidden flex flex-col group cursor-pointer hover:border-white/20 transition-all shadow-xl`}>
+                    <div key={post.id} onClick={() => { switchView(post.view); window.scrollTo({ top: 0, behavior: 'smooth' }) }} className={`glass rounded-[56px] border ${colors.glass} overflow-hidden flex flex-col group cursor-pointer hover:border-white/20 transition-all shadow-xl`}>
                       <div className="w-full h-72 overflow-hidden relative">
                         <img src={post.img} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-[8s]" alt={post.title} />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
@@ -320,7 +338,7 @@ export default function Dashboard() {
                     <h2 className="text-5xl lg:text-9xl font-black premium-text tracking-tighter leading-tight py-4 overflow-visible mb-10 md:text-center">Ready to Book?</h2>
                     <p className={`text-xl lg:text-2xl font-medium max-w-2xl mx-auto mb-16 ${colors.text} md:text-center`}>Expert help for your home in just a few clicks. Same-day available.</p>
                     <div className="flex flex-col md:flex-row gap-8 justify-center items-center text-center">
-                      <button onClick={() => setCurrentView('services')} className="w-full md:w-auto px-16 py-8 rounded-[32px] bg-white text-black text-[14px] font-black uppercase tracking-[0.5em] shadow-2xl hover:scale-[1.05] transition-all active:scale-95 text-center">Book Now</button>
+                      <button onClick={() => switchView('services')} className="w-full md:w-auto px-16 py-8 rounded-[32px] bg-white text-black text-[14px] font-black uppercase tracking-[0.5em] shadow-2xl hover:scale-[1.05] transition-all active:scale-95 text-center">Book Now</button>
                       <a href="tel:+919811797407" className={`text-xl font-black tracking-widest border-b-2 border-white/20 pb-2 hover:border-blue-500 transition-all ${colors.text} text-center`}>Call +91 9811797407</a>
                     </div>
                   </div>
@@ -360,7 +378,7 @@ export default function Dashboard() {
                 <div className="mb-20 text-left text-left"><span className={`text-[11px] uppercase tracking-[0.6em] font-black ${colors.subtext} block mb-6 text-left text-left`}>Knowledge Hub</span><h1 className="text-6xl lg:text-9xl font-black premium-text tracking-tighter leading-tight py-4 overflow-visible text-left text-left text-left">Our Blog</h1></div>
                 <div className="space-y-16 text-left text-left text-left">
                   {BLOG_POSTS.map((post) => (
-                    <div key={post.id} onClick={() => { setCurrentView(post.view); window.scrollTo({ top: 0, behavior: 'smooth' }) }} className={`glass rounded-[64px] border ${colors.glass} overflow-hidden flex flex-col md:flex-row group cursor-pointer hover:scale-[1.01] transition-all shadow-xl text-left text-left`}>
+                    <div key={post.id} onClick={() => { switchView(post.view); window.scrollTo({ top: 0, behavior: 'smooth' }) }} className={`glass rounded-[64px] border ${colors.glass} overflow-hidden flex flex-col md:flex-row group cursor-pointer hover:scale-[1.01] transition-all shadow-xl text-left text-left`}>
                       <div className="relative w-full md:w-[40%] h-64 md:h-auto overflow-hidden shrink-0 text-left">
                         <img src={post.img} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={post.title} />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
@@ -381,7 +399,7 @@ export default function Dashboard() {
           {currentView === 'plumbing-post' && (
             <div className="flex-grow flex flex-col py-12 px-6 lg:px-24 animate-in fade-in zoom-in-95 duration-500 text-left text-left">
               <div className="max-w-4xl mx-auto w-full">
-                <button onClick={() => setCurrentView('blog')} className="flex items-center gap-4 text-[10px] font-black uppercase tracking-[0.4em] mb-12 opacity-60 hover:opacity-100 transition-all text-left"><span>←</span> Back to Blog</button>
+                <button onClick={() => switchView('blog')} className="flex items-center gap-4 text-[10px] font-black uppercase tracking-[0.4em] mb-12 opacity-60 hover:opacity-100 transition-all text-left"><span>←</span> Back to Blog</button>
                 <header className="mb-20 text-left">
                   <div className="flex items-center gap-6 mb-8 text-left"><span className="bg-blue-600 text-white px-6 py-2 rounded-full text-[11px] font-black uppercase tracking-widest text-left">Plumbing</span><span className={`text-[11px] font-black uppercase tracking-widest ${colors.subtext} text-left`}>10 min read • Feb 20, 2026</span></div>
                   <h1 className="text-5xl lg:text-8xl font-black premium-text tracking-tighter leading-tight py-4 overflow-visible mb-12 text-left">Best Plumber in Lajpat Nagar – Fast, Reliable & Affordable</h1>
@@ -408,7 +426,7 @@ export default function Dashboard() {
           {currentView === 'deep-cleaning-post' && (
             <div className="flex-grow flex flex-col py-12 px-6 lg:px-24 animate-in fade-in zoom-in-95 duration-500 text-left text-left">
               <div className="max-w-4xl mx-auto w-full">
-                <button onClick={() => setCurrentView('blog')} className="flex items-center gap-4 text-[10px] font-black uppercase tracking-[0.4em] mb-12 opacity-60 hover:opacity-100 transition-all text-left"><span>←</span> Back to Blog</button>
+                <button onClick={() => switchView('blog')} className="flex items-center gap-4 text-[10px] font-black uppercase tracking-[0.4em] mb-12 opacity-60 hover:opacity-100 transition-all text-left"><span>←</span> Back to Blog</button>
                 <header className="mb-20 text-left">
                   <div className="flex items-center gap-6 mb-8 text-left"><span className="bg-blue-600 text-white px-6 py-2 rounded-full text-[11px] font-black uppercase tracking-widest text-left">Deep Cleaning</span><span className={`text-[11px] font-black uppercase tracking-widest ${colors.subtext} text-left`}>8 min read • Dec 15, 2025</span></div>
                   <h1 className="text-5xl lg:text-8xl font-black premium-text tracking-tighter leading-tight py-4 overflow-visible mb-12 text-left">Best Deep Cleaning Services in Delhi - Trusted Experts</h1>
@@ -429,7 +447,7 @@ export default function Dashboard() {
           {currentView === 'monsoon-post' && (
             <div className="flex-grow flex flex-col py-12 px-6 lg:px-24 animate-in fade-in zoom-in-95 duration-500 text-left text-left">
               <div className="max-w-4xl mx-auto w-full text-left">
-                <button onClick={() => setCurrentView('blog')} className="flex items-center gap-4 text-[10px] font-black uppercase tracking-[0.4em] mb-12 opacity-60 hover:opacity-100 transition-all text-left"><span>←</span> Back to Blog</button>
+                <button onClick={() => switchView('blog')} className="flex items-center gap-4 text-[10px] font-black uppercase tracking-[0.4em] mb-12 opacity-60 hover:opacity-100 transition-all text-left"><span>←</span> Back to Blog</button>
                 <header className="mb-20 text-left">
                   <div className="flex items-center gap-6 mb-8 text-left"><span className="bg-blue-600 text-white px-6 py-2 rounded-full text-[11px] font-black uppercase tracking-widest text-left">Home Maintenance</span><span className={`text-[11px] font-black uppercase tracking-widest ${colors.subtext} text-left`}>5 min read • Nov 20, 2025</span></div>
                   <h1 className="text-5xl lg:text-8xl font-black premium-text tracking-tighter leading-tight py-4 overflow-visible mb-12 text-left">Essential Maintenance for Delhi Monsoon Season</h1>
@@ -445,7 +463,7 @@ export default function Dashboard() {
           {currentView === 'ac-post' && (
             <div className="flex-grow flex flex-col py-12 px-6 lg:px-24 animate-in fade-in zoom-in-95 duration-500 text-left text-left">
               <div className="max-w-4xl mx-auto w-full text-left">
-                <button onClick={() => setCurrentView('blog')} className="flex items-center gap-4 text-[10px] font-black uppercase tracking-[0.4em] mb-12 opacity-60 hover:opacity-100 transition-all text-left"><span>←</span> Back to Blog</button>
+                <button onClick={() => switchView('blog')} className="flex items-center gap-4 text-[10px] font-black uppercase tracking-[0.4em] mb-12 opacity-60 hover:opacity-100 transition-all text-left"><span>←</span> Back to Blog</button>
                 <header className="mb-20 text-left">
                   <div className="flex items-center gap-6 mb-8 text-left"><span className="bg-blue-600 text-white px-6 py-2 rounded-full text-[11px] font-black uppercase tracking-widest text-left">AC Service</span><span className={`text-[11px] font-black uppercase tracking-widest ${colors.subtext} text-left`}>6 min read • Oct 10, 2025</span></div>
                   <h1 className="text-5xl lg:text-8xl font-black premium-text tracking-tighter leading-tight py-4 overflow-visible mb-12 text-left">Choosing the Right AC Provider in Delhi</h1>
@@ -463,7 +481,7 @@ export default function Dashboard() {
               cartItems={cartItems}
               removeFromCart={removeFromCart}
               theme={theme}
-              setCurrentView={setCurrentView}
+              setCurrentView={switchView}
               userInitials={userInitials}
             />
           )}
@@ -478,13 +496,13 @@ export default function Dashboard() {
               <div className="space-y-6 text-left text-left">
                 <h4 className={`text-[11px] uppercase tracking-[0.3em] font-black ${colors.text} text-left`}>Our Services</h4>
                 <ul className={`space-y-4 text-sm font-medium ${colors.cardText} text-left`}>
-                  {SERVICES.slice(0, 5).map(s => <li key={s.id} onClick={() => { setCurrentView('services'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-blue-500 transition-colors cursor-pointer text-left">{s.title}</li>)}
+                  {SERVICES.slice(0, 5).map(s => <li key={s.id} onClick={() => { switchView('services'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-blue-500 transition-colors cursor-pointer text-left">{s.title}</li>)}
                 </ul>
               </div>
               <div className="space-y-6 text-left text-left">
                 <h4 className={`text-[11px] uppercase tracking-[0.3em] font-black ${colors.text} text-left`}>Quick Navigation</h4>
                 <ul className={`space-y-4 text-sm font-medium ${colors.cardText} text-left text-left`}>
-                  {['Home', 'About Us', 'Blog'].map(l => <li key={l} className="hover:text-blue-500 transition-colors cursor-pointer text-left text-left" onClick={() => { if (l === 'Blog') setCurrentView('blog'); else if (l === 'Home') setCurrentView('home'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>{l}</li>)}
+                  {['Home', 'About Us', 'Blog'].map(l => <li key={l} className="hover:text-blue-500 transition-colors cursor-pointer text-left text-left" onClick={() => { if (l === 'Blog') switchView('blog'); else if (l === 'Home') switchView('home'); window.scrollTo({ top: 0, behavior: 'smooth' }) }}>{l}</li>)}
                 </ul>
               </div>
               <div className="space-y-6 text-left text-left">
