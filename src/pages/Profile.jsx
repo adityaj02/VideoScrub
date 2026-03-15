@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
+import { saveUserProfile } from "../lib/profile";
 import VideoBackground from "../components/background/VideoBackground";
 import ThreeScene from "../components/background/ThreeScene";
 
@@ -34,33 +35,17 @@ export default function Profile({ onComplete }) {
       return;
     }
 
-    const apiUrl = import.meta.env.VITE_API_URL;
-    if (apiUrl) {
-      try {
-        const response = await fetch(`${apiUrl}/api/users`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            supabaseId: data.user.id,
-            email: data.user.email,
-            name: trimmedName,
-            phone: normalizedPhone,
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error("Unable to save profile right now. Please try again.");
-        }
-      } catch (err) {
-        const isNetworkError = err instanceof TypeError;
-        if (!isNetworkError) {
-          setLoading(false);
-          setErrorMessage(err.message || "Unable to save profile right now. Please try again.");
-          return;
-        }
-
-        console.warn("Profile API unavailable, continuing with local profile completion.", err);
-      }
+    try {
+      await saveUserProfile({
+        userId: data.user.id,
+        email: data.user.email,
+        name: trimmedName,
+        phone: normalizedPhone,
+      });
+    } catch (error) {
+      setLoading(false);
+      setErrorMessage(error.message || "Unable to save profile right now. Please try again.");
+      return;
     }
 
     localStorage.setItem(`profile_complete:${data.user.id}`, "true");

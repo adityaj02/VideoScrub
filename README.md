@@ -1,16 +1,48 @@
-# React + Vite
+# VideoScrub (Boys@Work)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Setup
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+2. Copy environment file:
+   ```bash
+   cp .env.example .env
+   ```
+3. Fill these values in `.env`:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
+   - Optional: `VITE_API_URL`
 
-Currently, two official plugins are available:
+> `SUPABASE_DB_URL` is **server-side only**. Do not expose it to browser code.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Supabase database table required
+Create a `profiles` table (SQL editor in Supabase):
 
-## React Compiler
+```sql
+create table if not exists public.profiles (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  email text,
+  name text not null,
+  phone text,
+  updated_at timestamptz default now()
+);
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+alter table public.profiles enable row level security;
 
-## Expanding the ESLint configuration
+create policy "Users can read own profile"
+  on public.profiles
+  for select
+  using (auth.uid() = user_id);
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+create policy "Users can insert/update own profile"
+  on public.profiles
+  for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+```
+
+## Run
+```bash
+npm run dev
+```
