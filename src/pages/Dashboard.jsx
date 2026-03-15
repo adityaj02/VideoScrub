@@ -59,6 +59,7 @@ export default function Dashboard() {
 
       let profileName = "";
       try {
+        const profile = await getUserProfile({ userId: user.id, email: user.email });
         const profile = await getUserProfile(user.id);
         profileName = profile?.name || "";
       } catch (error) {
