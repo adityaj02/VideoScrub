@@ -38,8 +38,8 @@ export default function Login({ close }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-[20px]">
-      <div className="glass relative w-full max-w-[420px] overflow-hidden rounded-[32px] border border-white/20 bg-white/[0.1] p-6 text-white shadow-2xl sm:p-10 md:p-12">
-        <div className="pointer-events-none absolute inset-0 bg-blue-500/10" />
+      <div className="glass relative w-full max-w-[420px] overflow-hidden rounded-[32px] border border-white/15 bg-[#0a0a0a]/70 p-6 text-white shadow-2xl shadow-black/70 sm:p-10 md:p-12">
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.05] to-transparent" />
 
         <div className="relative z-10">
           <h2 className="mb-2 text-2xl font-black tracking-tighter sm:text-3xl">Welcome Back</h2>
@@ -59,7 +59,7 @@ export default function Login({ close }) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="w-full rounded-xl border border-white/10 bg-white/5 p-4 text-white outline-none transition-colors placeholder:text-white/35 focus:border-blue-500/50"
+                className="w-full rounded-xl border border-white/15 bg-black/35 p-4 text-white outline-none transition-colors placeholder:text-white/35 focus:border-white/50"
               />
 
               {errorMessage && (
@@ -71,7 +71,7 @@ export default function Login({ close }) {
               <button
                 onClick={sendMagicLink}
                 disabled={loading}
-                className="mt-6 w-full rounded-full bg-blue-600 py-4 text-xs font-bold uppercase tracking-widest text-white shadow-lg shadow-blue-500/20 transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+                className="mt-6 w-full rounded-full border border-white/20 bg-white/10 py-4 text-xs font-bold uppercase tracking-widest text-white shadow-lg shadow-black/40 transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loading ? "Sending..." : "Send Login Link"}
               </button>
