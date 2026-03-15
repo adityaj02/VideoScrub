@@ -44,6 +44,9 @@ export default function Profile({ onComplete }) {
       });
     } catch (error) {
       console.warn("Supabase profile save failed, continuing with local completion.", error);
+      setLoading(false);
+      setErrorMessage(error.message || "Unable to save profile right now. Please try again.");
+      return;
     }
 
     localStorage.setItem(`profile_complete:${data.user.id}`, "true");

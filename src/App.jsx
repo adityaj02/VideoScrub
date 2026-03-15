@@ -23,6 +23,7 @@ export default function App() {
 
       try {
         const profile = await getUserProfile({ userId: user.id, email: user.email });
+        const profile = await getUserProfile(user.id);
         const hasProfile = Boolean(profile?.name);
         setProfileComplete(hasProfile);
 
