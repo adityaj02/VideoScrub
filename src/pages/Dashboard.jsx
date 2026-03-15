@@ -20,36 +20,92 @@ import { TESTIMONIALS } from "../data/testimonials";
 export default function Dashboard() {
   const [theme, setTheme] = useState('dark');
   const [activeIdx, setActiveIdx] = useState(0);
-  const [location, setLocation] = useState(() => ("geolocation" in navigator ? "Detecting..." : "Delhi Hub"));
+  const [location, setLocation] = useState(() => ("geolocation" in navigator ? "Detecting..." : "Location unavailable"));
+  const [serviceAvailable, setServiceAvailable] = useState(true);
   const [cartItems, setCartItems] = useState([]);
   const [currentView, setCurrentView] = useState('home'); // Now defaults directly to 'home' because Dashboard only runs authenticated!
   const [selectedService, setSelectedService] = useState(null);
   const [userInitials, setUserInitials] = useState('B');
   const contentRef = useRef(null);
 
-  const detectLocationInstantly = () => {
-    if (!("geolocation" in navigator)) return;
+  const isDelhiRegion = (address = {}) => {
+    const parts = [
+      address.city,
+      address.town,
+      address.village,
+      address.suburb,
+      address.county,
+      address.state_district,
+      address.state,
+      address.display_name,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+
+    return /(delhi|new delhi|ncr|gurgaon|gurugram|noida|ghaziabad|faridabad)/i.test(parts);
+  };
+
+  const updateProfileLocation = async (resolvedLocation) => {
+    const { data } = await supabase.auth.getUser();
+    const user = data?.user;
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('profiles')
+      .upsert(
+        {
+          user_id: user.id,
+          email: user.email,
+          location: resolvedLocation,
+        },
+        { onConflict: 'user_id' }
+      );
+
+    if (error) {
+      console.warn('Could not save location in Supabase.', error);
+    }
+  };
+
+  useEffect(() => {
+    if (!("geolocation" in navigator)) {
+      setLocation('Location unavailable');
+      setServiceAvailable(false);
+      return;
+    }
+
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         try {
           const { latitude, longitude } = position.coords;
           const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
           const data = await res.json();
-          setLocation(data.address.city || data.address.town || data.address.suburb || "Delhi NCR");
+          const resolvedLocation =
+            data?.address?.city ||
+            data?.address?.town ||
+            data?.address?.village ||
+            data?.address?.suburb ||
+            data?.address?.state_district ||
+            data?.address?.state ||
+            'Unknown location';
+
+          setLocation(resolvedLocation);
+
+          const inDelhiRegion = isDelhiRegion({ ...data?.address, display_name: data?.display_name });
+          setServiceAvailable(inDelhiRegion);
+          await updateProfileLocation(resolvedLocation);
         } catch {
-          setLocation("New Delhi, IN");
+          setLocation('Unable to detect location');
+          setServiceAvailable(false);
         }
       },
-      () => setLocation("Delhi Hub"),
-      { enableHighAccuracy: true, timeout: 5000 }
+      () => {
+        setLocation('Location permission denied');
+        setServiceAvailable(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
     );
-  };
-
-  useEffect(() => {
-    detectLocationInstantly();
   }, []);
-
-
 
   useEffect(() => {
     const loadUserInitials = async () => {
@@ -59,7 +115,7 @@ export default function Dashboard() {
 
       let profileName = "";
       try {
-        const profile = await getUserProfile({ userId: user.id, email: user.email });
+        const profile = await getUserProfile({ userId: user.id });
         profileName = profile?.name || "";
       } catch (error) {
         console.warn("Unable to read profile for initials.", error);
@@ -140,6 +196,26 @@ export default function Dashboard() {
     cardText: theme === 'dark' ? 'text-white/60' : 'text-[#1d1d1f]/80',
     sidebarHover: theme === 'dark' ? 'hover:bg-white/5' : 'hover:bg-black/5',
   };
+
+  if (!serviceAvailable) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center p-6 text-center">
+        <div className="max-w-xl rounded-3xl border border-white/20 bg-white/5 p-8 backdrop-blur-xl">
+          <h2 className="text-3xl font-black tracking-tight">Service unavailable</h2>
+          <p className="mt-4 text-sm text-white/70">
+            We are still working to launch in your area. Current detected location: <strong>{location}</strong>
+          </p>
+          <p className="mt-2 text-xs uppercase tracking-widest text-white/40">Currently serving Delhi NCR only</p>
+          <button
+            onClick={handleLogout}
+            className="mt-6 rounded-full border border-white/25 bg-white/10 px-6 py-3 text-xs font-bold uppercase tracking-widest"
+          >
+            Logout
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
