@@ -22,6 +22,7 @@ export default function ServiceSlider({ SERVICES, activeIdx, setActiveIdx, addTo
                                         <div className="space-y-6">
                                             <span className={`text-[10px] md:text-[11px] uppercase tracking-[0.5em] ${isInCart?.(service.id) ? 'text-blue-500' : colors.subtext} font-black block`}>Technical Excellence</span>
                                             <h3 className="text-6xl lg:text-8xl font-black premium-text tracking-tighter leading-none py-2 overflow-visible text-left">{service.title}</h3>
+                                            <p className={`text-sm font-black uppercase tracking-[0.4em] ${colors.subtext}`}>₹{Number(service.price || 0).toLocaleString('en-IN')}</p>
                                             <p className={`text-lg leading-relaxed max-sm font-medium tracking-tight ${colors.cardText}`}>{service.desc}</p>
                                         </div>
                                     </div>

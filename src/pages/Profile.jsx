@@ -7,11 +7,13 @@ import ThreeScene from "../components/background/ThreeScene";
 export default function Profile({ onComplete }) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [location, setLocation] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
   const trimmedName = useMemo(() => name.trim(), [name]);
   const normalizedPhone = useMemo(() => phone.replace(/\D/g, "").slice(0, 15), [phone]);
+  const trimmedLocation = useMemo(() => location.trim(), [location]);
 
   const saveProfile = async () => {
     if (!trimmedName || trimmedName.length < 2) {
@@ -19,8 +21,13 @@ export default function Profile({ onComplete }) {
       return;
     }
 
-    if (normalizedPhone && normalizedPhone.length < 10) {
+    if (!/^\d{10,15}$/.test(normalizedPhone)) {
       setErrorMessage("Please enter a valid contact number.");
+      return;
+    }
+
+    if (!trimmedLocation) {
+      setErrorMessage("Please enter your location.");
       return;
     }
 
@@ -41,9 +48,9 @@ export default function Profile({ onComplete }) {
         email: data.user.email,
         name: trimmedName,
         phone: normalizedPhone,
+        location: trimmedLocation,
       });
     } catch (error) {
-      console.warn("Supabase profile save failed, continuing with local completion.", error);
       setLoading(false);
       setErrorMessage(error.message || "Unable to save profile right now. Please try again.");
       return;
@@ -125,6 +132,23 @@ export default function Profile({ onComplete }) {
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
           inputMode="tel"
+          style={{
+            width: "100%",
+            padding: "14px 16px",
+            borderRadius: "14px",
+            background: "rgba(0,0,0,0.38)",
+            border: "1px solid rgba(255,255,255,0.16)",
+            color: "#fff",
+            fontSize: "14px",
+            outline: "none",
+            fontFamily: "inherit",
+          }}
+        />
+
+        <input
+          placeholder="Location"
+          value={location}
+          onChange={(e) => setLocation(e.target.value)}
           style={{
             width: "100%",
             padding: "14px 16px",
