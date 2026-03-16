@@ -12,39 +12,73 @@ import ServiceSlider from "../components/services/ServiceSlider";
 import ServiceGrid from "../components/services/ServiceGrid";
 import ServiceModal from "../components/services/ServiceModal";
 import CartSummary from "../components/cart/CartSummary";
+import { SERVICES as FALLBACK_SERVICES } from "../data/services";
 
-import { SERVICES } from "../data/services";
 import { BLOG_POSTS } from "../data/blogPosts";
 import { TESTIMONIALS } from "../data/testimonials";
+
+const SERVICE_IMAGES = {
+  plumbing: '/Assets/plumber.png',
+  electrician: '/Assets/electrician.png',
+  electrical: '/Assets/electrician.png',
+  'ac repair': '/Assets/ACservices.png',
+  cleaning: '/Assets/services.png',
+  'appliance repair': '/Assets/construction.png',
+};
+
+const DELHI_REGEX = /(delhi|new delhi)/i;
 
 export default function Dashboard() {
   const [theme, setTheme] = useState('dark');
   const [activeIdx, setActiveIdx] = useState(0);
   const [location, setLocation] = useState(() => ("geolocation" in navigator ? "Detecting..." : "Location unavailable"));
-  const [serviceAvailable, setServiceAvailable] = useState(true);
+  const [services, setServices] = useState([]);
+  const [servicesLoading, setServicesLoading] = useState(true);
+  const [servicesError, setServicesError] = useState('');
   const [cartItems, setCartItems] = useState([]);
-  const [currentView, setCurrentView] = useState('home'); // Now defaults directly to 'home' because Dashboard only runs authenticated!
+  const [currentView, setCurrentView] = useState('home');
   const [selectedService, setSelectedService] = useState(null);
   const [userInitials, setUserInitials] = useState('B');
+  const [userId, setUserId] = useState('');
+  const [profile, setProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [checkoutMessage, setCheckoutMessage] = useState('');
+  const [submittingBooking, setSubmittingBooking] = useState(false);
+  const [bookingSuccess, setBookingSuccess] = useState(false);
+  const [bookingMetadata, setBookingMetadata] = useState(null);
   const contentRef = useRef(null);
 
-  const isDelhiRegion = (address = {}) => {
-    const parts = [
-      address.city,
-      address.town,
-      address.village,
-      address.suburb,
-      address.county,
-      address.state_district,
-      address.state,
-      address.display_name,
-    ]
-      .filter(Boolean)
-      .join(' ')
-      .toLowerCase();
+  const isDelhiLocation = (value = '') => DELHI_REGEX.test(String(value));
 
-    return /(delhi|new delhi|ncr|gurgaon|gurugram|noida|ghaziabad|faridabad)/i.test(parts);
+  const normalizeService = (row) => {
+    const key = String(row?.name || '').toLowerCase();
+    return {
+      id: row.service_id,
+      service_id: row.service_id,
+      title: row.name,
+      name: row.name,
+      desc: row.description || 'Professional doorstep service by verified experts.',
+      description: row.description || 'Professional doorstep service by verified experts.',
+      price: Number(row.price || 0),
+      rating: '4.8',
+      img: SERVICE_IMAGES[key] || '/Assets/services.png',
+      subServices: ['Verified technician visit', 'Transparent pricing', 'Quality checks'],
+    };
   };
+
+  const normalizeFallbackService = (row) => ({
+    id: row.id,
+    service_id: null,
+    title: row.title,
+    name: row.title,
+    desc: row.desc,
+    description: row.desc,
+    price: 0,
+    rating: row.rating || '4.8',
+    img: row.img || '/Assets/services.png',
+    subServices: row.subServices || ['Verified technician visit', 'Transparent pricing', 'Quality checks'],
+    source: 'fallback',
+  });
 
   const updateProfileLocation = async (resolvedLocation) => {
     const { data } = await supabase.auth.getUser();
@@ -62,15 +96,37 @@ export default function Dashboard() {
         { onConflict: 'user_id' }
       );
 
-    if (error) {
-      console.warn('Could not save location in Supabase.', error);
+    if (!error) {
+      setProfile((prev) => ({ ...(prev || {}), userId: user.id, email: user.email, location: resolvedLocation }));
     }
   };
 
   useEffect(() => {
+    const loadServices = async () => {
+      setServicesLoading(true);
+      setServicesError('');
+
+      const { data, error } = await supabase
+        .from('services')
+        .select('service_id,name,description,price')
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        setServicesError('Unable to load services right now. Please try again shortly.');
+        setServices(FALLBACK_SERVICES.map(normalizeFallbackService));
+      } else {
+        setServices((data || []).map(normalizeService));
+      }
+
+      setServicesLoading(false);
+    };
+
+    loadServices();
+  }, []);
+
+  useEffect(() => {
     if (!("geolocation" in navigator)) {
       setLocation('Location unavailable');
-      setServiceAvailable(false);
       return;
     }
 
@@ -90,18 +146,13 @@ export default function Dashboard() {
             'Unknown location';
 
           setLocation(resolvedLocation);
-
-          const inDelhiRegion = isDelhiRegion({ ...data?.address, display_name: data?.display_name });
-          setServiceAvailable(inDelhiRegion);
           await updateProfileLocation(resolvedLocation);
         } catch {
           setLocation('Unable to detect location');
-          setServiceAvailable(false);
         }
       },
       () => {
         setLocation('Location permission denied');
-        setServiceAvailable(false);
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
@@ -111,15 +162,23 @@ export default function Dashboard() {
     const loadUserInitials = async () => {
       const { data } = await supabase.auth.getUser();
       const user = data?.user;
-      if (!user) return;
+      if (!user) {
+        setProfileLoading(false);
+        return;
+      }
+      setUserId(user.id);
 
       let profileName = "";
+      let profileData = null;
       try {
-        const profile = await getUserProfile({ userId: user.id });
-        profileName = profile?.name || "";
-      } catch (error) {
-        console.warn("Unable to read profile for initials.", error);
+        profileData = await getUserProfile({ userId: user.id });
+        profileName = profileData?.name || "";
+      } catch {
+        profileData = null;
       }
+
+      setProfile(profileData || { userId: user.id, email: user.email, name: '', phone: '', location: '' });
+      setProfileLoading(false);
 
       const localName = localStorage.getItem(`profile_name:${user.id}`);
       const rawName = profileName || localName || user.user_metadata?.name || user.user_metadata?.full_name || user.email || "B";
@@ -138,11 +197,13 @@ export default function Dashboard() {
 
 
   useEffect(() => {
+    if (!services.length) return undefined;
+    setActiveIdx((prev) => (prev >= services.length ? 0 : prev));
     const interval = setInterval(() => {
-      if (currentView === 'home') setActiveIdx((prev) => (prev + 1) % SERVICES.length);
+      if (currentView === 'home') setActiveIdx((prev) => (prev + 1) % services.length);
     }, 8000);
     return () => clearInterval(interval);
-  }, [currentView]);
+  }, [currentView, services.length]);
 
   const toggleTheme = (e) => {
     e.stopPropagation();
@@ -158,26 +219,97 @@ export default function Dashboard() {
         localStorage.removeItem(`profile_complete:${userId}`);
         localStorage.removeItem(`profile_name:${userId}`);
       }
-    } catch (error) {
-      console.warn("Logout failed:", error.message);
     } finally {
       window.location.assign("/");
     }
   };
 
   const addToCart = (service) => {
-    if (cartItems.some(item => item.id === service.id)) {
-      switchView('cart', { smooth: false });
+    setBookingSuccess(false);
+    setCheckoutMessage('');
+    setCartItems((prev) => {
+      const existing = prev.find((item) => item.service_id === service.service_id);
+      if (existing) {
+        return prev.map((item) => item.service_id === service.service_id ? { ...item, quantity: item.quantity + 1 } : item);
+      }
+
+      return [...prev, {
+        service_id: service.service_id,
+        name: service.name,
+        title: service.title,
+        description: service.description,
+        price: Number(service.price || 0),
+        quantity: 1,
+        img: service.img,
+      }];
+    });
+  };
+
+  const removeFromCart = (serviceId) => {
+    setCartItems(prev => prev.filter(item => item.service_id !== serviceId));
+  };
+
+  const updateQuantity = (serviceId, delta) => {
+    setCartItems((prev) => prev
+      .map((item) => item.service_id === serviceId ? { ...item, quantity: Math.max(1, item.quantity + delta) } : item));
+  };
+
+  const isInCart = (serviceId) => cartItems.some(item => item.service_id === serviceId);
+
+  const canCheckoutByLocation = isDelhiLocation(profile?.location || location);
+  const locationWarning = !canCheckoutByLocation
+    ? "Currently we only provide services in Delhi. You can still place a request, and our team will contact you if your area becomes serviceable."
+    : '';
+
+  const confirmBooking = async ({ date, time }) => {
+    if (submittingBooking) return;
+    if (!userId) {
+      setCheckoutMessage('Session expired. Please login again.');
       return;
     }
-    setCartItems(prev => [...prev, { ...service, cartId: Date.now() + Math.random() }]);
-  };
+    if (cartItems.length === 0) {
+      setCheckoutMessage('Please add at least one service to continue.');
+      return;
+    }
+    if (!profile?.name || !profile?.phone || !profile?.location) {
+      setCheckoutMessage('Please complete your profile details (name, phone, location) before checkout.');
+      return;
+    }
+    if (!/^\d{10,15}$/.test(String(profile.phone || ''))) {
+      setCheckoutMessage('Please update your phone number to a valid format before checkout.');
+      return;
+    }
+    setSubmittingBooking(true);
+    setCheckoutMessage('');
+    setBookingSuccess(false);
 
-  const removeFromCart = (cartId) => {
-    setCartItems(prev => prev.filter(item => item.cartId !== cartId));
-  };
+    const rows = cartItems.flatMap((item) =>
+      Array.from({ length: item.quantity }).map(() => ({
+        user_id: userId,
+        service_id: item.service_id,
+        status: 'pending',
+      }))
+    );
 
-  const isInCart = (id) => cartItems.some(item => item.id === id);
+    if (rows.some((row) => !row.service_id)) {
+      setCheckoutMessage('Live services are currently unavailable. Please refresh and try again in a few moments.');
+      setSubmittingBooking(false);
+      return;
+    }
+
+    const { error } = await supabase.from('orders').insert(rows);
+
+    if (error) {
+      setCheckoutMessage('Unable to place booking right now. Please try again.');
+      setSubmittingBooking(false);
+      return;
+    }
+
+    setBookingMetadata({ date, time, cart_items: cartItems });
+    setCartItems([]);
+    setBookingSuccess(true);
+    setSubmittingBooking(false);
+  };
 
   const switchView = useCallback((view, options = {}) => {
     const behavior = options.smooth === false ? 'auto' : 'smooth';
@@ -196,26 +328,6 @@ export default function Dashboard() {
     cardText: theme === 'dark' ? 'text-white/60' : 'text-[#1d1d1f]/80',
     sidebarHover: theme === 'dark' ? 'hover:bg-white/5' : 'hover:bg-black/5',
   };
-
-  if (!serviceAvailable) {
-    return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center p-6 text-center">
-        <div className="max-w-xl rounded-3xl border border-white/20 bg-white/5 p-8 backdrop-blur-xl">
-          <h2 className="text-3xl font-black tracking-tight">Service unavailable</h2>
-          <p className="mt-4 text-sm text-white/70">
-            We are still working to launch in your area. Current detected location: <strong>{location}</strong>
-          </p>
-          <p className="mt-2 text-xs uppercase tracking-widest text-white/40">Currently serving Delhi NCR only</p>
-          <button
-            onClick={handleLogout}
-            className="mt-6 rounded-full border border-white/25 bg-white/10 px-6 py-3 text-xs font-bold uppercase tracking-widest"
-          >
-            Logout
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <>
@@ -285,22 +397,34 @@ export default function Dashboard() {
 
           {currentView === 'home' && (
             <>
-              <ServiceSlider
-                SERVICES={SERVICES}
-                activeIdx={activeIdx}
-                setActiveIdx={setActiveIdx}
-                addToCart={addToCart}
-                isInCart={isInCart}
-                theme={theme}
-              />
+              {servicesLoading ? (
+                <div className="px-6 lg:px-24 pt-16 pb-6">
+                  <div className={`glass p-8 rounded-[28px] border ${colors.glass}`}>Loading services...</div>
+                </div>
+              ) : servicesError ? (
+                <div className="px-6 lg:px-24 pt-16 pb-6">
+                  <div className="rounded-[28px] border border-red-500/40 bg-red-500/10 p-8 text-red-200">{servicesError}</div>
+                </div>
+              ) : (
+                <>
+                  <ServiceSlider
+                    SERVICES={services}
+                    activeIdx={activeIdx}
+                    setActiveIdx={setActiveIdx}
+                    addToCart={addToCart}
+                    isInCart={isInCart}
+                    theme={theme}
+                  />
 
-              <ServiceGrid
-                SERVICES={SERVICES}
-                addToCart={addToCart}
-                isInCart={isInCart}
-                setSelectedService={setSelectedService}
-                theme={theme}
-              />
+                  <ServiceGrid
+                    SERVICES={services}
+                    addToCart={addToCart}
+                    isInCart={isInCart}
+                    setSelectedService={setSelectedService}
+                    theme={theme}
+                  />
+                </>
+              )}
 
               {/* WHY CHOOSE US */}
               <section id="why-us" className="px-6 lg:px-24 py-20 relative z-20 text-left border-t border-white/5 bg-white/5">
@@ -438,8 +562,23 @@ export default function Dashboard() {
                 <span className={`text-[10px] md:text-[12px] uppercase tracking-[0.6em] ${colors.subtext} font-bold block mb-4`}>Repository</span>
                 <h2 className="text-5xl lg:text-7xl font-black premium-text tracking-tighter leading-tight py-4 overflow-visible text-left text-left">Services</h2>
               </div>
+              {!!servicesError && (
+                <div className="mb-8 rounded-[24px] border border-amber-500/40 bg-amber-500/10 p-5 text-amber-200">
+                  {servicesError}
+                </div>
+              )}
+              {services.length > 0 && (
+                <ServiceSlider
+                  SERVICES={services}
+                  activeIdx={activeIdx}
+                  setActiveIdx={setActiveIdx}
+                  addToCart={addToCart}
+                  isInCart={isInCart}
+                  theme={theme}
+                />
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 lg:gap-8 pb-20">
-                {SERVICES.map((service) => (
+                {services.map((service) => (
                   <div key={service.id} className={`glass reflect-card p-8 lg:p-10 rounded-[48px] flex flex-col justify-between border transition-all duration-500 hover:scale-[1.02] ${colors.glass} ${isInCart(service.id) ? 'in-cart-highlight' : ''}`}>
                     <div className="text-left">
                       <div className="flex justify-between items-start mb-6 lg:mb-8 text-left">
@@ -447,6 +586,7 @@ export default function Dashboard() {
                         <div className="text-right text-left"><div className={`text-xl font-black tracking-tighter ${colors.text} text-left`}>{service.rating} ★</div></div>
                       </div>
                       <h3 className="text-2xl lg:text-3xl font-black premium-text tracking-tighter mb-4 py-1 overflow-visible text-left text-left">{service.title}</h3>
+                      <p className={`text-[11px] uppercase tracking-[0.3em] font-black mb-3 ${colors.subtext}`}>₹{Number(service.price || 0).toLocaleString('en-IN')}</p>
                       <p className={`text-sm leading-relaxed mb-6 font-medium line-clamp-2 ${colors.cardText} text-left text-left`}>{service.desc}</p>
                       <button onClick={() => setSelectedService(service)} className={`text-[10px] uppercase tracking-[0.3em] font-black underline underline-offset-8 mb-8 transition-colors ${colors.text} hover:text-blue-500 block text-left text-left`}>Full Detail</button>
                     </div>
@@ -565,9 +705,16 @@ export default function Dashboard() {
             <CartSummary
               cartItems={cartItems}
               removeFromCart={removeFromCart}
+              updateQuantity={updateQuantity}
               theme={theme}
               setCurrentView={switchView}
-              userInitials={userInitials}
+              onConfirmBooking={confirmBooking}
+              isCheckoutAvailable={!!profile?.name && !!profile?.phone && !!profile?.location && /^\d{10,15}$/.test(String(profile?.phone || '')) && !profileLoading}
+              checkoutMessage={checkoutMessage}
+              locationWarning={locationWarning}
+              submitting={submittingBooking}
+              bookingSuccess={bookingSuccess}
+              bookingMetadata={bookingMetadata}
             />
           )}
 
@@ -581,7 +728,7 @@ export default function Dashboard() {
               <div className="space-y-6 text-left text-left">
                 <h4 className={`text-[11px] uppercase tracking-[0.3em] font-black ${colors.text} text-left`}>Our Services</h4>
                 <ul className={`space-y-4 text-sm font-medium ${colors.cardText} text-left`}>
-                  {SERVICES.slice(0, 5).map(s => <li key={s.id} onClick={() => { switchView('services'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-blue-500 transition-colors cursor-pointer text-left">{s.title}</li>)}
+                  {services.slice(0, 5).map(s => <li key={s.id} onClick={() => { switchView('services'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-blue-500 transition-colors cursor-pointer text-left">{s.title}</li>)}
                 </ul>
               </div>
               <div className="space-y-6 text-left text-left">

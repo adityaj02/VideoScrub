@@ -19,6 +19,7 @@ export default function ServiceModal({ selectedService, setSelectedService, addT
                     <div className="overflow-y-auto custom-scroll pr-4 pb-4 overflow-visible text-left text-left">
                         <span className={`text-[12px] uppercase tracking-[0.6em] font-black ${isInCart(selectedService.id) ? 'text-blue-500' : colors.subtext} block mb-6 text-left`}>Technical deep-dive</span>
                         <h2 className="text-5xl lg:text-7xl font-black premium-text tracking-tighter leading-tight mb-8 py-4 overflow-visible text-left text-left text-left text-left">{selectedService.title}</h2>
+                        <p className={`text-sm font-black uppercase tracking-[0.4em] mb-4 ${colors.subtext}`}>Starting at ₹{Number(selectedService.price || 0).toLocaleString('en-IN')}</p>
                         <p className={`text-xl leading-relaxed mb-10 font-medium ${colors.cardText} text-left text-left text-left text-left`}>{selectedService.desc}</p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 text-left text-left text-left text-left">
                             {selectedService.subServices.map((sub, sIdx) => (
