@@ -200,7 +200,9 @@ export default function Dashboard() {
     if (!services.length) return undefined;
     setActiveIdx((prev) => (prev >= services.length ? 0 : prev));
     const interval = setInterval(() => {
-      if (currentView === 'home') setActiveIdx((prev) => (prev + 1) % services.length);
+      if (currentView === 'home' || currentView === 'services') {
+        setActiveIdx((prev) => (prev + 1) % services.length);
+      }
     }, 8000);
     return () => clearInterval(interval);
   }, [currentView, services.length]);
