@@ -23,7 +23,8 @@ export default function ServiceGrid({ SERVICES, addToCart, isInCart, setSelected
                                     <div className={`text-xl font-black tracking-tighter ${colors.text}`}>{service.rating} ★</div>
                                 </div>
                             </div>
-                            <h3 className="text-2xl font-black premium-text tracking-tighter mb-4 py-1 overflow-visible text-left">{service.title}</h3>
+                            <h3 className="text-2xl font-black premium-text tracking-tighter mb-2 py-1 overflow-visible text-left">{service.title}</h3>
+                            <p className={`text-[11px] uppercase tracking-[0.25em] font-black mb-4 ${colors.cardText}`}>₹{Number(service.price || 0).toLocaleString('en-IN')}</p>
                             <p className={`text-xs leading-relaxed mb-6 font-medium line-clamp-2 ${colors.cardText} text-left`}>{service.desc}</p>
                             <button onClick={() => setSelectedService?.(service)} className={`text-[9px] uppercase tracking-[0.3em] font-black underline underline-offset-8 mb-8 transition-colors ${colors.text} hover:text-blue-500 block`}>Service Detail</button>
                         </div>
