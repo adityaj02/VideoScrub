@@ -32,6 +32,7 @@ export default function Navbar({ location, toggleTheme, theme, setCurrentView, u
             <div className="hidden xl:flex justify-center">
                 <div className="flex items-center gap-3 p-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-xl">
                     {[
+                        { label: 'Get Started', action: () => setCurrentView('services') },
                         { label: 'Services', action: () => setCurrentView('services') },
                         { label: 'Blog', action: () => setCurrentView('blog') },
                         { label: 'About', action: () => scrollToSection('about-experience') },
@@ -49,6 +50,12 @@ export default function Navbar({ location, toggleTheme, theme, setCurrentView, u
             </div>
 
             <div className="flex items-center justify-end gap-3 lg:gap-4">
+                <button
+                    onClick={() => setCurrentView('services')}
+                    className="px-4 lg:px-6 py-2.5 rounded-full bg-blue-600 text-white text-[9px] lg:text-[10px] font-black uppercase tracking-widest hover:bg-blue-500 transition-all duration-500 shadow-xl shadow-blue-500/20 active:scale-95 whitespace-nowrap"
+                >
+                    Get Started
+                </button>
                 <button onClick={toggleTheme} className={`glass px-4 lg:px-5 py-2 rounded-full text-[9px] font-bold uppercase tracking-widest transition-all hover:scale-110 active:scale-90 ${colors.text} ${colors.glass}`}>
                     {theme === 'dark' ? 'Ivory' : 'Reflective'}
                 </button>
