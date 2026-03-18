@@ -114,6 +114,7 @@ export default function Dashboard() {
       if (error) {
         setServicesError('Unable to load services right now. Please try again shortly.');
         setServices(FALLBACK_SERVICES.map(normalizeFallbackService));
+        setServices([]);
       } else {
         setServices((data || []).map(normalizeService));
       }
@@ -203,6 +204,8 @@ export default function Dashboard() {
       if (currentView === 'home' || currentView === 'services') {
         setActiveIdx((prev) => (prev + 1) % services.length);
       }
+    const interval = setInterval(() => {
+      if (currentView === 'home') setActiveIdx((prev) => (prev + 1) % services.length);
     }, 8000);
     return () => clearInterval(interval);
   }, [currentView, services.length]);
@@ -262,6 +265,20 @@ export default function Dashboard() {
   const locationWarning = !canCheckoutByLocation
     ? "Currently we only provide services in Delhi. You can still place a request, and our team will contact you if your area becomes serviceable."
     : '';
+  };
+
+  const removeFromCart = (serviceId) => {
+    setCartItems(prev => prev.filter(item => item.service_id !== serviceId));
+  };
+
+  const updateQuantity = (serviceId, delta) => {
+    setCartItems((prev) => prev
+      .map((item) => item.service_id === serviceId ? { ...item, quantity: Math.max(1, item.quantity + delta) } : item));
+  };
+
+  const isInCart = (serviceId) => cartItems.some(item => item.service_id === serviceId);
+
+  const canCheckoutByLocation = isDelhiLocation(profile?.location || location);
 
   const confirmBooking = async ({ date, time }) => {
     if (submittingBooking) return;
@@ -281,6 +298,11 @@ export default function Dashboard() {
       setCheckoutMessage('Please update your phone number to a valid format before checkout.');
       return;
     }
+    if (!canCheckoutByLocation) {
+      setCheckoutMessage('Currently we only provide services in Delhi. You can browse services but checkout is unavailable for your location.');
+      return;
+    }
+
     setSubmittingBooking(true);
     setCheckoutMessage('');
     setBookingSuccess(false);
@@ -714,6 +736,12 @@ export default function Dashboard() {
               isCheckoutAvailable={!!profile?.name && !!profile?.phone && !!profile?.location && /^\d{10,15}$/.test(String(profile?.phone || '')) && !profileLoading}
               checkoutMessage={checkoutMessage}
               locationWarning={locationWarning}
+              isCheckoutAvailable={canCheckoutByLocation && !!profile?.name && !!profile?.phone && !!profile?.location && /^\d{10,15}$/.test(String(profile?.phone || '')) && !profileLoading}
+              checkoutMessage={
+                checkoutMessage || (!canCheckoutByLocation
+                  ? 'Currently we only provide services in Delhi. You can browse services but checkout is unavailable for your location.'
+                  : '')
+              }
               submitting={submittingBooking}
               bookingSuccess={bookingSuccess}
               bookingMetadata={bookingMetadata}
