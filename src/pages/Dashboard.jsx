@@ -12,6 +12,7 @@ import ServiceSlider from "../components/services/ServiceSlider";
 import ServiceGrid from "../components/services/ServiceGrid";
 import ServiceModal from "../components/services/ServiceModal";
 import CartSummary from "../components/cart/CartSummary";
+import { SERVICES as FALLBACK_SERVICES } from "../data/services";
 
 import { BLOG_POSTS } from "../data/blogPosts";
 import { TESTIMONIALS } from "../data/testimonials";
@@ -65,6 +66,20 @@ export default function Dashboard() {
     };
   };
 
+  const normalizeFallbackService = (row) => ({
+    id: row.id,
+    service_id: null,
+    title: row.title,
+    name: row.title,
+    desc: row.desc,
+    description: row.desc,
+    price: 0,
+    rating: row.rating || '4.8',
+    img: row.img || '/Assets/services.png',
+    subServices: row.subServices || ['Verified technician visit', 'Transparent pricing', 'Quality checks'],
+    source: 'fallback',
+  });
+
   const updateProfileLocation = async (resolvedLocation) => {
     const { data } = await supabase.auth.getUser();
     const user = data?.user;
@@ -98,6 +113,7 @@ export default function Dashboard() {
 
       if (error) {
         setServicesError('Unable to load services right now. Please try again shortly.');
+        setServices(FALLBACK_SERVICES.map(normalizeFallbackService));
         setServices([]);
       } else {
         setServices((data || []).map(normalizeService));
@@ -183,6 +199,11 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!services.length) return undefined;
+    setActiveIdx((prev) => (prev >= services.length ? 0 : prev));
+    const interval = setInterval(() => {
+      if (currentView === 'home' || currentView === 'services') {
+        setActiveIdx((prev) => (prev + 1) % services.length);
+      }
     const interval = setInterval(() => {
       if (currentView === 'home') setActiveIdx((prev) => (prev + 1) % services.length);
     }, 8000);
@@ -241,6 +262,23 @@ export default function Dashboard() {
   const isInCart = (serviceId) => cartItems.some(item => item.service_id === serviceId);
 
   const canCheckoutByLocation = isDelhiLocation(profile?.location || location);
+  const locationWarning = !canCheckoutByLocation
+    ? "Currently we only provide services in Delhi. You can still place a request, and our team will contact you if your area becomes serviceable."
+    : '';
+  };
+
+  const removeFromCart = (serviceId) => {
+    setCartItems(prev => prev.filter(item => item.service_id !== serviceId));
+  };
+
+  const updateQuantity = (serviceId, delta) => {
+    setCartItems((prev) => prev
+      .map((item) => item.service_id === serviceId ? { ...item, quantity: Math.max(1, item.quantity + delta) } : item));
+  };
+
+  const isInCart = (serviceId) => cartItems.some(item => item.service_id === serviceId);
+
+  const canCheckoutByLocation = isDelhiLocation(profile?.location || location);
 
   const confirmBooking = async ({ date, time }) => {
     if (submittingBooking) return;
@@ -276,6 +314,12 @@ export default function Dashboard() {
         status: 'pending',
       }))
     );
+
+    if (rows.some((row) => !row.service_id)) {
+      setCheckoutMessage('Live services are currently unavailable. Please refresh and try again in a few moments.');
+      setSubmittingBooking(false);
+      return;
+    }
 
     const { error } = await supabase.from('orders').insert(rows);
 
@@ -542,6 +586,21 @@ export default function Dashboard() {
                 <span className={`text-[10px] md:text-[12px] uppercase tracking-[0.6em] ${colors.subtext} font-bold block mb-4`}>Repository</span>
                 <h2 className="text-5xl lg:text-7xl font-black premium-text tracking-tighter leading-tight py-4 overflow-visible text-left text-left">Services</h2>
               </div>
+              {!!servicesError && (
+                <div className="mb-8 rounded-[24px] border border-amber-500/40 bg-amber-500/10 p-5 text-amber-200">
+                  {servicesError}
+                </div>
+              )}
+              {services.length > 0 && (
+                <ServiceSlider
+                  SERVICES={services}
+                  activeIdx={activeIdx}
+                  setActiveIdx={setActiveIdx}
+                  addToCart={addToCart}
+                  isInCart={isInCart}
+                  theme={theme}
+                />
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 lg:gap-8 pb-20">
                 {services.map((service) => (
                   <div key={service.id} className={`glass reflect-card p-8 lg:p-10 rounded-[48px] flex flex-col justify-between border transition-all duration-500 hover:scale-[1.02] ${colors.glass} ${isInCart(service.id) ? 'in-cart-highlight' : ''}`}>
@@ -674,6 +733,9 @@ export default function Dashboard() {
               theme={theme}
               setCurrentView={switchView}
               onConfirmBooking={confirmBooking}
+              isCheckoutAvailable={!!profile?.name && !!profile?.phone && !!profile?.location && /^\d{10,15}$/.test(String(profile?.phone || '')) && !profileLoading}
+              checkoutMessage={checkoutMessage}
+              locationWarning={locationWarning}
               isCheckoutAvailable={canCheckoutByLocation && !!profile?.name && !!profile?.phone && !!profile?.location && /^\d{10,15}$/.test(String(profile?.phone || '')) && !profileLoading}
               checkoutMessage={
                 checkoutMessage || (!canCheckoutByLocation
