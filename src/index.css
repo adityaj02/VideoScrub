@@ -1,0 +1,27 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* 
+  IMPORTANT: Do NOT set height or overflow on html — that would cap
+  documentElement.scrollHeight to the viewport, killing scroll-driven video.
+*/
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  min-height: 100%;
+  overflow-x: hidden;
+  background: #0b0b0c;
+}
+
+#root {
+  /* Let #root grow naturally with its content (the 300vh div) */
+  min-height: 100%;
+}
