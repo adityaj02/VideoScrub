@@ -147,10 +147,18 @@ export default function Dashboard() {
         }
       } catch {
         if (!isMounted) return;
+      const { data, error } = await supabase
+        .from("services")
+        .select("service_id,name,description,price")
+        .order("created_at", { ascending: true });
+
+      if (error || !data?.length) {
         setServicesError(
           "Live services could not be loaded. Showing cached service catalog."
         );
         setServices(FALLBACK_SERVICES.map(normalizeFallbackService));
+      } else {
+        setServices(data.map(normalizeService));
       }
       if (isMounted) setServicesLoading(false);
     };
@@ -300,6 +308,7 @@ export default function Dashboard() {
           .join("") || "B";
 
       if (isMounted) setUserInitials(initials);
+      setUserInitials(initials);
     };
 
     loadUserInitials();
@@ -352,6 +361,10 @@ export default function Dashboard() {
       if (existing) {
         return prev.map((item) =>
           idsEqual(item.service_id, itemKey)
+      const existing = prev.find((item) => item.service_id === itemKey);
+      if (existing) {
+        return prev.map((item) =>
+          item.service_id === itemKey
             ? { ...item, quantity: item.quantity + 1 }
             : item
         );
@@ -374,12 +387,14 @@ export default function Dashboard() {
 
   const removeFromCart = (serviceId) => {
     setCartItems((prev) => prev.filter((item) => !idsEqual(item.service_id, serviceId)));
+    setCartItems((prev) => prev.filter((item) => item.service_id !== serviceId));
   };
 
   const updateQuantity = (serviceId, delta) => {
     setCartItems((prev) =>
       prev.map((item) =>
         idsEqual(item.service_id, serviceId)
+        item.service_id === serviceId
           ? { ...item, quantity: Math.max(1, item.quantity + delta) }
           : item
       )
@@ -387,6 +402,8 @@ export default function Dashboard() {
   };
 
   const isInCart = (serviceId) => cartItems.some((item) => idsEqual(item.service_id, serviceId));
+  const isInCart = (serviceId) =>
+    cartItems.some((item) => String(item.service_id) === String(serviceId));
 
   const canCheckoutByLocation = isDelhiLocation(profile?.location || location);
   const locationWarning = !canCheckoutByLocation
@@ -624,6 +641,24 @@ export default function Dashboard() {
                   ))}
                 </div>
               </section>
+                    </div>
+                    <div className="flex gap-3 flex-wrap">
+                      <button onClick={() => switchView("services")} className="px-6 py-3 rounded-full bg-blue-600 text-white text-[11px] uppercase font-black tracking-widest">Browse Services</button>
+                      <button onClick={() => switchView("cart")} className="px-6 py-3 rounded-full border border-white/20 text-[11px] uppercase font-black tracking-widest">Cart ({cartItems.length})</button>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              {servicesLoading ? (
+                <div className="px-6 lg:px-24 pt-8 pb-6"><div className={`glass p-8 rounded-[28px] border ${colors.glass}`}>Loading services...</div></div>
+              ) : (
+                <>
+                  {!!servicesError && <div className="px-6 lg:px-24 pt-6"><div className="rounded-[20px] border border-amber-500/40 bg-amber-500/10 p-5 text-amber-200">{servicesError}</div></div>}
+                  <ServiceSlider SERVICES={services} activeIdx={activeIdx} setActiveIdx={setActiveIdx} addToCart={addToCart} isInCart={isInCart} theme={theme} />
+                  <ServiceGrid SERVICES={services} addToCart={addToCart} isInCart={isInCart} setSelectedService={setSelectedService} theme={theme} />
+                </>
+              )}
             </>
           )}
 
@@ -637,6 +672,7 @@ export default function Dashboard() {
               <div className="pt-10">
                 <ServiceGrid SERVICES={services} addToCart={addToCart} isInCart={isInCart} setSelectedService={setSelectedService} theme={theme} />
               </div>
+              <ServiceSlider SERVICES={services} activeIdx={activeIdx} setActiveIdx={setActiveIdx} addToCart={addToCart} isInCart={isInCart} theme={theme} />
             </section>
           )}
 
@@ -646,6 +682,8 @@ export default function Dashboard() {
               {!!blogError && <div className="mb-6 rounded-[18px] border border-amber-500/40 bg-amber-500/10 p-4 text-amber-200 text-sm">{blogError}</div>}
               <div className="space-y-8">
                 {blogPosts.map((post) => (
+              <div className="space-y-8">
+                {BLOG_POSTS.map((post) => (
                   <div key={post.id} onClick={() => switchView(post.view)} className={`glass rounded-[32px] border ${colors.glass} p-8 cursor-pointer`}>
                     <p className={`text-[10px] uppercase tracking-[0.3em] ${colors.subtext}`}>{post.cat} · {post.date}</p>
                     <h3 className="mt-3 text-3xl font-black premium-text">{post.title}</h3>
@@ -664,6 +702,19 @@ export default function Dashboard() {
                 <h2 className="mt-4 text-4xl lg:text-6xl font-black premium-text">{activePost.title}</h2>
                 <p className={`mt-6 text-lg ${colors.cardText}`}>{activePost.excerpt}</p>
               </div>
+          {["plumbing-post", "deep-cleaning-post", "monsoon-post", "ac-post"].includes(currentView) && (
+            <section className="py-12 px-6 lg:px-24">
+              <button onClick={() => switchView("blog")} className="text-xs uppercase tracking-widest mb-6 opacity-70">← Back to Blog</button>
+              {(() => {
+                const post = BLOG_POSTS.find((p) => p.view === currentView);
+                return (
+                  <div className={`glass rounded-[32px] border ${colors.glass} p-8 lg:p-12`}>
+                    <p className={`text-[10px] uppercase tracking-[0.3em] ${colors.subtext}`}>{post?.cat || "Article"}</p>
+                    <h2 className="mt-4 text-4xl lg:text-6xl font-black premium-text">{post?.title}</h2>
+                    <p className={`mt-6 text-lg ${colors.cardText}`}>{post?.excerpt}</p>
+                  </div>
+                );
+              })()}
             </section>
           )}
 
@@ -684,6 +735,8 @@ export default function Dashboard() {
                     ? "Currently we only provide services in Delhi. You can browse services but checkout is unavailable for your location."
                     : ""))
               }
+              isCheckoutAvailable={canCheckout}
+              checkoutMessage={checkoutMessage || (!canCheckoutByLocation ? "Currently we only provide services in Delhi. You can browse services but checkout is unavailable for your location." : "")}
               locationWarning={locationWarning}
               submitting={submittingBooking}
               bookingSuccess={bookingSuccess}
