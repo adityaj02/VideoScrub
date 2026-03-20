@@ -122,66 +122,96 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
+    let isMounted = true;
+
     const loadServices = async () => {
+      if (!isMounted) return;
       setServicesLoading(true);
       setServicesError("");
 
-      const { data, error } = await supabase
-        .from("services")
-        .select("service_id,name,description,price")
-        .order("created_at", { ascending: true });
+      try {
+        const { data, error } = await supabase
+          .from("services")
+          .select("service_id,name,description,price")
+          .order("created_at", { ascending: true });
 
-      if (error || !data?.length) {
+        if (!isMounted) return;
+
+        if (error || !data?.length) {
+          setServicesError(
+            "Live services could not be loaded. Showing cached service catalog."
+          );
+          setServices(FALLBACK_SERVICES.map(normalizeFallbackService));
+        } else {
+          setServices(data.map(normalizeService));
+        }
+      } catch {
+        if (!isMounted) return;
         setServicesError(
           "Live services could not be loaded. Showing cached service catalog."
         );
         setServices(FALLBACK_SERVICES.map(normalizeFallbackService));
-      } else {
-        setServices(data.map(normalizeService));
       }
-
-      setServicesLoading(false);
+      if (isMounted) setServicesLoading(false);
     };
 
     loadServices();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
+    let isMounted = true;
+
     const loadBlogs = async () => {
+      if (!isMounted) return;
       setBlogLoading(true);
       setBlogError("");
-      const { data, error } = await supabase
-        .from("blogs")
-        .select("id,title,category,excerpt,cover_image,read_time,published_at,slug")
-        .order("published_at", { ascending: false })
-        .limit(8);
+      try {
+        const { data, error } = await supabase
+          .from("blogs")
+          .select("id,title,category,excerpt,cover_image,read_time,published_at,slug")
+          .order("published_at", { ascending: false })
+          .limit(8);
 
-      if (!error && data?.length) {
-        setBlogPosts(
-          data.map((row, idx) => ({
-            id: row.id ?? idx + 1,
-            cat: row.category || "Insights",
-            readTime: row.read_time || "6 min read",
-            date: row.published_at
-              ? new Date(row.published_at).toLocaleDateString("en-IN", {
-                  day: "2-digit",
-                  month: "short",
-                  year: "numeric",
-                })
-              : "Latest",
-            title: row.title,
-            view: row.slug ? `post-${row.slug}` : `post-${row.id ?? idx + 1}`,
-            img: row.cover_image || "/Assets/services.png",
-            excerpt: row.excerpt || "Read our latest service insights from Boys@Work.",
-          }))
-        );
-      } else if (error) {
+        if (!isMounted) return;
+
+        if (!error && data?.length) {
+          setBlogPosts(
+            data.map((row, idx) => ({
+              id: row.id ?? idx + 1,
+              cat: row.category || "Insights",
+              readTime: row.read_time || "6 min read",
+              date: row.published_at
+                ? new Date(row.published_at).toLocaleDateString("en-IN", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                  })
+                : "Latest",
+              title: row.title,
+              view: row.slug ? `post-${row.slug}` : `post-${row.id ?? idx + 1}`,
+              img: row.cover_image || "/Assets/services.png",
+              excerpt: row.excerpt || "Read our latest service insights from Boys@Work.",
+            }))
+          );
+        } else if (error) {
+          setBlogError("Live blog feed is unavailable. Showing saved articles.");
+        }
+      } catch {
+        if (!isMounted) return;
         setBlogError("Live blog feed is unavailable. Showing saved articles.");
       }
-      setBlogLoading(false);
+      if (isMounted) setBlogLoading(false);
     };
 
     loadBlogs();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -221,14 +251,16 @@ export default function Dashboard() {
   }, [updateProfileLocation]);
 
   useEffect(() => {
+    let isMounted = true;
+
     const loadUserInitials = async () => {
       const { data } = await supabase.auth.getUser();
       const user = data?.user;
       if (!user) {
-        setProfileLoading(false);
+        if (isMounted) setProfileLoading(false);
         return;
       }
-      setUserId(user.id);
+      if (isMounted) setUserId(user.id);
 
       let profileName = "";
       let profileData = null;
@@ -239,6 +271,7 @@ export default function Dashboard() {
         profileData = null;
       }
 
+      if (!isMounted) return;
       setProfile(
         profileData || {
           userId: user.id,
@@ -266,10 +299,14 @@ export default function Dashboard() {
           .map((part) => part[0]?.toUpperCase())
           .join("") || "B";
 
-      setUserInitials(initials);
+      if (isMounted) setUserInitials(initials);
     };
 
     loadUserInitials();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
