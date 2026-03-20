@@ -192,6 +192,7 @@ export default function Dashboard() {
                   })
                 : "Latest",
               title: row.title,
+              slug: row.slug || `post-${row.id ?? idx + 1}` ,
               view: row.slug ? `post-${row.slug}` : `post-${row.id ?? idx + 1}`,
               img: row.cover_image || "/Assets/services.png",
               excerpt: row.excerpt || "Read our latest service insights from Boys@Work.",
@@ -463,10 +464,11 @@ export default function Dashboard() {
   const switchView = useCallback((view, options = {}) => {
     const behavior = options.smooth === false ? "auto" : "smooth";
     setCurrentView(view);
-    window.scrollTo({ top: 0, behavior });
     if (contentRef.current) {
       contentRef.current.scrollTo({ top: 0, behavior });
+      return;
     }
+    window.scrollTo({ top: 0, behavior });
   }, []);
 
   const canCheckout =
@@ -537,7 +539,7 @@ export default function Dashboard() {
           onLogout={handleLogout}
         />
 
-        <div ref={contentRef} className="flex-1 h-screen overflow-y-auto relative bg-transparent ml-20 lg:ml-64 custom-scroll">
+        <div ref={contentRef} className="flex-1 h-screen overflow-y-auto relative bg-transparent ml-20 lg:ml-64 custom-scroll scroll-smooth [scroll-behavior:smooth]">
           <Navbar
             location={location}
             toggleTheme={toggleTheme}
@@ -604,6 +606,7 @@ export default function Dashboard() {
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       {blogPosts.slice(0, 2).map((post) => (
                         <button key={post.id} onClick={() => switchView(post.view)} className={`glass text-left rounded-[32px] border p-7 ${colors.glass}`}>
+                          <img src={post.img} alt={post.title} className="w-full h-44 object-cover rounded-[20px] mb-5" />
                           <p className={`text-[10px] uppercase tracking-[0.3em] ${colors.subtext}`}>{post.cat} · {post.date}</p>
                           <h3 className="mt-3 text-2xl font-black premium-text">{post.title}</h3>
                           <p className={`mt-3 text-sm ${colors.cardText}`}>{post.excerpt}</p>
@@ -647,6 +650,7 @@ export default function Dashboard() {
               <div className="space-y-8">
                 {blogPosts.map((post) => (
                   <div key={post.id} onClick={() => switchView(post.view)} className={`glass rounded-[32px] border ${colors.glass} p-8 cursor-pointer`}>
+                    <img src={post.img} alt={post.title} className="w-full h-56 object-cover rounded-[20px] mb-5" />
                     <p className={`text-[10px] uppercase tracking-[0.3em] ${colors.subtext}`}>{post.cat} · {post.date}</p>
                     <h3 className="mt-3 text-3xl font-black premium-text">{post.title}</h3>
                     <p className={`mt-3 ${colors.cardText}`}>{post.excerpt}</p>
@@ -662,7 +666,15 @@ export default function Dashboard() {
               <div className={`glass rounded-[32px] border ${colors.glass} p-8 lg:p-12`}>
                 <p className={`text-[10px] uppercase tracking-[0.3em] ${colors.subtext}`}>{activePost.cat || "Article"}</p>
                 <h2 className="mt-4 text-4xl lg:text-6xl font-black premium-text">{activePost.title}</h2>
+                <img src={activePost.img} alt={activePost.title} className="mt-8 w-full max-h-[440px] object-cover rounded-[24px]" />
                 <p className={`mt-6 text-lg ${colors.cardText}`}>{activePost.excerpt}</p>
+                {!!activePost.content?.length && (
+                  <div className={`mt-7 space-y-4 text-base leading-relaxed ${colors.cardText}`}>
+                    {activePost.content.map((paragraph, idx) => (
+                      <p key={idx}>{paragraph}</p>
+                    ))}
+                  </div>
+                )}
               </div>
             </section>
           )}

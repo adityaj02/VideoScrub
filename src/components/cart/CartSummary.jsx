@@ -4,6 +4,59 @@ function formatCurrency(value) {
     return `₹${Number(value || 0).toLocaleString('en-IN')}`;
 }
 
+const SLOT_START_HOUR = 9;
+const SLOT_END_HOUR = 20;
+const SLOT_STEP_MINUTES = 30;
+const MIN_NOTICE_HOURS = 2;
+
+const formatSlotValue = (date) =>
+    `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+
+const formatSlotLabel = (date) =>
+    date.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
+
+const addMinutes = (date, minutes) => new Date(date.getTime() + minutes * 60 * 1000);
+
+function ceilToNextInterval(date, intervalMinutes = 30) {
+    const next = new Date(date);
+    const minutes = next.getMinutes();
+    const remainder = minutes % intervalMinutes;
+    if (remainder !== 0) {
+        next.setMinutes(minutes + (intervalMinutes - remainder));
+    }
+    next.setSeconds(0, 0);
+    return next;
+}
+
+function buildTimeSlots(selectedDate) {
+    if (!selectedDate) return [];
+
+    const now = new Date();
+    const selectedStart = new Date(`${selectedDate}T00:00:00`);
+    const selectedEnd = new Date(`${selectedDate}T23:59:59`);
+
+    if (Number.isNaN(selectedStart.getTime())) return [];
+
+    const dayStart = new Date(selectedDate);
+    dayStart.setHours(SLOT_START_HOUR, 0, 0, 0);
+
+    const dayEnd = new Date(selectedDate);
+    dayEnd.setHours(SLOT_END_HOUR, 0, 0, 0);
+
+    const earliestBooking = ceilToNextInterval(addMinutes(now, MIN_NOTICE_HOURS * 60), SLOT_STEP_MINUTES);
+
+    const isToday = now >= selectedStart && now <= selectedEnd;
+    let cursor = isToday ? new Date(Math.max(dayStart.getTime(), earliestBooking.getTime())) : dayStart;
+
+    const slots = [];
+    while (cursor <= dayEnd) {
+        slots.push({ value: formatSlotValue(cursor), label: formatSlotLabel(cursor) });
+        cursor = addMinutes(cursor, SLOT_STEP_MINUTES);
+    }
+
+    return slots;
+}
+
 export default function CartSummary({
     cartItems,
     removeFromCart,
@@ -13,7 +66,7 @@ export default function CartSummary({
     onConfirmBooking,
     isCheckoutAvailable,
     checkoutMessage,
-    locationWarning, // ✅ kept
+    locationWarning,
     submitting,
     bookingSuccess,
     bookingMetadata,
@@ -33,28 +86,19 @@ export default function CartSummary({
         [cartItems]
     );
 
-    const timeSlots = useMemo(() => {
-        if (!selectedDate) return [];
+    const dateOptions = useMemo(() => {
+        return Array.from({ length: 7 }).map((_, index) => {
+            const date = new Date();
+            date.setHours(0, 0, 0, 0);
+            date.setDate(date.getDate() + index);
+            return {
+                value: date.toISOString().split('T')[0],
+                label: date.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }),
+            };
+        });
+    }, []);
 
-        const now = new Date();
-        const minBookingTime = new Date(now.getTime() + 2 * 60 * 60 * 1000);
-        const start = new Date(`${selectedDate}T09:00:00`);
-        const end = new Date(`${selectedDate}T20:00:00`);
-        const selected = new Date(`${selectedDate}T00:00:00`);
-        const isToday = selected.toDateString() === now.toDateString();
-
-        const slots = [];
-        let cursor = new Date(start);
-
-        while (cursor <= end) {
-            if (!isToday || cursor >= minBookingTime) {
-                slots.push(cursor.toTimeString().slice(0, 5));
-            }
-            cursor = new Date(cursor.getTime() + 30 * 60 * 1000);
-        }
-
-        return slots;
-    }, [selectedDate]);
+    const timeSlots = useMemo(() => buildTimeSlots(selectedDate), [selectedDate]);
 
     const onSubmit = async () => {
         if (cartItems.length === 0) {
@@ -79,7 +123,6 @@ export default function CartSummary({
     return (
         <div className="flex-grow flex flex-col items-center justify-start py-8 px-4 lg:px-24 animate-in fade-in zoom-in-95 duration-500 overflow-visible text-left">
             <div className={`glass w-full max-w-4xl p-6 sm:p-8 lg:p-16 rounded-[40px] lg:rounded-[64px] border ${colors.glass} shadow-xl relative overflow-visible text-left`}>
-                
                 <div className="mb-10">
                     <span className={`text-[11px] uppercase tracking-[0.6em] font-black ${colors.subtext} block mb-4`}>
                         Order Summary
@@ -95,7 +138,7 @@ export default function CartSummary({
                     </p>
                 )}
 
-                {!!locationWarning && ( // ✅ resolved block
+                {!!locationWarning && (
                     <p className="mb-6 rounded-2xl border border-blue-500/40 bg-blue-500/10 px-4 py-3 text-sm text-blue-200">
                         {locationWarning}
                     </p>
@@ -122,7 +165,6 @@ export default function CartSummary({
                     ) : (
                         cartItems.map((item) => (
                             <div key={item.service_id} className={`flex flex-col sm:flex-row sm:items-center gap-4 p-4 sm:p-5 rounded-[24px] border ${theme === 'dark' ? 'bg-white/[0.03] border-white/5' : 'bg-black/[0.02] border-black/5'} shadow-md`}>
-                                
                                 <div className="w-14 h-14 rounded-2xl overflow-hidden bg-black shrink-0">
                                     <img src={item.img} className="w-full h-full object-cover" alt={item.name} />
                                 </div>
@@ -158,7 +200,6 @@ export default function CartSummary({
 
                 {cartItems.length > 0 && (
                     <div className="mt-10 pt-8 border-t border-white/5 space-y-6">
-                        
                         <div className="flex justify-between items-center">
                             <span className={`text-[11px] uppercase tracking-[0.4em] font-black ${colors.subtext}`}>
                                 Total
@@ -168,31 +209,53 @@ export default function CartSummary({
                             </h4>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <input
-                                type="date"
-                                min={new Date().toISOString().split('T')[0]}
-                                value={selectedDate}
-                                onChange={(e) => {
-                                    setSelectedDate(e.target.value);
-                                    setSelectedTime("");
-                                }}
-                                className="w-full rounded-2xl border border-white/20 bg-transparent px-4 py-3 text-sm"
-                            />
-
-                            <select
-                                value={selectedTime}
-                                onChange={(e) => setSelectedTime(e.target.value)}
-                                className="w-full rounded-2xl border border-white/20 bg-transparent px-4 py-3 text-sm"
-                            >
-                                <option value="">Select time slot</option>
-                                {timeSlots.map((slot) => (
-                                    <option key={slot} value={slot} className="text-black">
-                                        {slot}
-                                    </option>
+                        <div className="space-y-4">
+                            <div className="flex flex-wrap gap-2">
+                                {dateOptions.map((option) => (
+                                    <button
+                                        key={option.value}
+                                        type="button"
+                                        onClick={() => {
+                                            setSelectedDate(option.value);
+                                            setSelectedTime("");
+                                        }}
+                                        className={`rounded-full border px-4 py-2 text-xs font-bold tracking-wide transition-all ${selectedDate === option.value ? 'border-blue-500 bg-blue-500/20 text-blue-100' : 'border-white/20 hover:border-white/40'}`}
+                                    >
+                                        {option.label}
+                                    </button>
                                 ))}
-                            </select>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <input
+                                    type="date"
+                                    min={dateOptions[0]?.value}
+                                    value={selectedDate}
+                                    onChange={(e) => {
+                                        setSelectedDate(e.target.value);
+                                        setSelectedTime("");
+                                    }}
+                                    className="w-full rounded-2xl border border-white/20 bg-transparent px-4 py-3 text-sm"
+                                />
+
+                                <select
+                                    value={selectedTime}
+                                    onChange={(e) => setSelectedTime(e.target.value)}
+                                    className="w-full rounded-2xl border border-white/20 bg-transparent px-4 py-3 text-sm"
+                                >
+                                    <option value="">Select time slot</option>
+                                    {timeSlots.map((slot) => (
+                                        <option key={slot.value} value={slot.value} className="text-black">
+                                            {slot.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
+
+                        {selectedDate && timeSlots.length === 0 && (
+                            <p className="text-xs text-amber-300">No slots left for this date. Please choose another date.</p>
+                        )}
 
                         {localError && <p className="text-sm text-red-400">{localError}</p>}
 

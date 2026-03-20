@@ -5,6 +5,7 @@ import AuthCallback from "./pages/AuthCallback";
 import Profile from "./pages/Profile";
 import App from "./App";
 import Login from "./pages/Login"; // classic (with video bg) — kept as fallback
+import BlogPage from "./components/blog/BlogPage";
 
 export default function Router() {
     return (
@@ -14,6 +15,8 @@ export default function Router() {
                 <Route path="/"          element={<App />} />
                 <Route path="/dashboard" element={<App />} />
                 <Route path="/home"      element={<App />} />
+                <Route path="/blog"      element={<BlogPage />} />
+                <Route path="/blog/:slug" element={<BlogPage />} />
 
                 {/* ── Auth flow ── */}
                 <Route path="/login"         element={<LoginPage />} />
