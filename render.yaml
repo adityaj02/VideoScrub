@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: videoscrub-backend
+    env: node
+    plan: free
+    rootDir: server
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: NODE_ENV
+        value: production
+      # Update these once you have your URLs
+      - key: CORS_ORIGINS
+        value: https://your-frontend-url.vercel.app
+      - key: MONGO_URI
+        sync: false
