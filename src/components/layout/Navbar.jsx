@@ -5,18 +5,6 @@ export default function Navbar({ location, toggleTheme, theme, setCurrentView, u
         glass: theme === 'dark' ? 'bg-white/[0.04] border-white/10 shadow-lg' : 'bg-white/90 border-black/5 shadow-md',
     };
 
-    const scrollToSection = (id) => {
-        const el = document.getElementById(id);
-        if (el) el.scrollIntoView({ behavior: 'smooth' });
-        else {
-            setCurrentView('home');
-            setTimeout(() => {
-                const target = document.getElementById(id);
-                if (target) target.scrollIntoView({ behavior: 'smooth' });
-            }, 100);
-        }
-    };
-
     return (
         <nav className="w-full px-4 lg:px-12 py-4 lg:py-6 grid grid-cols-[1fr_auto_auto] items-center gap-3 lg:gap-6 z-[95] shrink-0 sticky top-0 glass border-b border-white/5 min-h-20 shadow-2xl">
             <div className="flex items-center gap-3 text-left min-w-0">
@@ -35,8 +23,8 @@ export default function Navbar({ location, toggleTheme, theme, setCurrentView, u
                         { label: 'Get Started', action: () => setCurrentView('services') },
                         { label: 'Services', action: () => setCurrentView('services') },
                         { label: 'Blog', action: () => setCurrentView('blog') },
-                        { label: 'About', action: () => scrollToSection('about-experience') },
-                        { label: 'Contact', action: () => scrollToSection('footer-main') }
+                        { label: 'About', action: () => setCurrentView('about') },
+                        { label: 'Contact', action: () => setCurrentView('contact') }
                     ].map((btn, i) => (
                         <button
                             key={i}

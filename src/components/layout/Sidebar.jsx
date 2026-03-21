@@ -17,6 +17,8 @@ export default function Sidebar({ currentView, setCurrentView, cartItems, theme,
                         { icon: '🏠', label: 'Home', view: 'home' },
                         { icon: '🛠️', label: 'Services', view: 'services' },
                         { icon: '📝', label: 'Blog', view: 'blog' },
+                        { icon: 'ℹ️', label: 'About', view: 'about' },
+                        { icon: '📞', label: 'Contact', view: 'contact' },
                         { icon: '🛒', label: 'Cart', view: 'cart' }
                     ].map((item, i) => (
                         <button key={i} onClick={() => { setCurrentView(item.view); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className={`flex items-center gap-4 lg:px-4 py-4 rounded-2xl transition-all ${currentView === item.view ? 'bg-blue-500/10' : colors.sidebarHover} group ${colors.text} relative active:scale-95`}>
