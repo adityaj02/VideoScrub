@@ -68,7 +68,6 @@ export default function CartSummary({
     onConfirmBooking,
     isCheckoutAvailable,
     checkoutMessage,
-    locationWarning,
     submitting,
     bookingSuccess,
     bookingMetadata,
@@ -182,9 +181,9 @@ export default function CartSummary({
                                 </div>
 
                                 <div className="flex items-center gap-3">
-                                    <button onClick={() => updateQuantity?.(item.service_id, -1)} className="w-8 h-8 rounded-full border border-white/20">−</button>
+                                    <button onClick={() => updateQuantity?.(item.service_id, -1)} className={`w-8 h-8 rounded-full border ${theme === 'dark' ? 'border-white/20 text-white' : 'border-black/20 text-black'}`}>−</button>
                                     <span className="min-w-5 text-center font-bold">{item.quantity}</span>
-                                    <button onClick={() => updateQuantity?.(item.service_id, 1)} className="w-8 h-8 rounded-full border border-white/20">+</button>
+                                    <button onClick={() => updateQuantity?.(item.service_id, 1)} className={`w-8 h-8 rounded-full border ${theme === 'dark' ? 'border-white/20 text-white' : 'border-black/20 text-black'}`}>+</button>
                                 </div>
 
                                 <div className="text-right sm:min-w-[120px]">
@@ -224,7 +223,7 @@ export default function CartSummary({
                                             setSelectedDate(option.value);
                                             setSelectedTime("");
                                         }}
-                                        className={`rounded-full border px-4 py-2 text-xs font-bold tracking-wide transition-all ${selectedDate === option.value ? 'border-blue-500 bg-blue-500/20 text-blue-100' : 'border-white/20 hover:border-white/40'}`}
+                                        className={`rounded-full border px-4 py-2 text-xs font-bold tracking-wide transition-all ${selectedDate === option.value ? 'border-blue-500 bg-blue-500/20 text-blue-100' : theme === 'dark' ? 'border-white/20 hover:border-white/40 text-white' : 'border-black/20 hover:border-black/40 text-black'}`}
                                     >
                                         {option.label}
                                     </button>
@@ -240,13 +239,13 @@ export default function CartSummary({
                                         setSelectedDate(e.target.value);
                                         setSelectedTime("");
                                     }}
-                                    className="w-full rounded-2xl border border-white/20 bg-transparent px-4 py-3 text-sm"
+                                    className={`w-full rounded-2xl border bg-transparent px-4 py-3 text-sm ${theme === 'dark' ? 'border-white/20 text-white [color-scheme:dark]' : 'border-black/20 text-black [color-scheme:light]'}`}
                                 />
 
                                 <select
                                     value={selectedTime}
                                     onChange={(e) => setSelectedTime(e.target.value)}
-                                    className="w-full rounded-2xl border border-white/20 bg-transparent px-4 py-3 text-sm"
+                                    className={`w-full rounded-2xl border bg-transparent px-4 py-3 text-sm ${theme === 'dark' ? 'border-white/20 text-white' : 'border-black/20 text-black'}`}
                                 >
                                     <option value="">Select time slot</option>
                                     {timeSlots.map((slot) => (
