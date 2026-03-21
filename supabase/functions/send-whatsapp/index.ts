@@ -20,36 +20,50 @@ const maskPhone = (value: string) => {
   return `${"*".repeat(Math.max(0, value.length - 4))}${visible}`
 }
 
-const sendTextMessage = async ({
+const sendMessage = async ({
   token,
   phoneNumberId,
   to,
-  body,
+  type = "template",
+  textBody,
 }: {
   token: string
   phoneNumberId: string
   to: string
-  body: string
+  type?: "text" | "template"
+  textBody?: string
 }) => {
+  const payload = type === "template"
+    ? {
+        messaging_product: "whatsapp",
+        to,
+        type: "template",
+        template: {
+          name: "hello_world", // Using the default test template as requested in your curl
+          language: { code: "en_US" }
+        }
+      }
+    : {
+        messaging_product: "whatsapp",
+        to,
+        type: "text",
+        text: { body: textBody },
+      }
+
   const response = await fetch(`https://graph.facebook.com/v22.0/${phoneNumberId}/messages`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      messaging_product: "whatsapp",
-      to,
-      type: "text",
-      text: { body },
-    }),
+    body: JSON.stringify(payload),
   })
 
-  const payload = await response.json().catch(() => ({}))
+  const responseData = await response.json().catch(() => ({}))
   if (!response.ok) {
-    throw new Error(`WhatsApp API failed (${response.status}): ${JSON.stringify(payload)}`)
+    throw new Error(`WhatsApp API failed (${response.status}): ${JSON.stringify(responseData)}`)
   }
-  return payload
+  return responseData
 }
 
 serve(async (req) => {
@@ -61,8 +75,8 @@ serve(async (req) => {
   try {
     const { name, phone, email, service, location, date, time } = await req.json()
 
-    const token = Deno.env.get("WHATSAPP_TOKEN")
-    const phoneNumberId = Deno.env.get("PHONE_NUMBER_ID")
+    const token = Deno.env.get("WHATSAPP_TOKEN") || "EAARqUY7UA0cBRFCUM1i89cZCrlh9DviVRqTZCO5ToyAIrvR6b4waVD7zOFjPBCDTxV7FgHiUyalQVB0S79Hs7w6mh7xAApRfcc5JfOiexDNc7PuAhwZBRyIT4aDF0J7Yj9MHHPrCdQHUH62movoVwwRsZC35DkY3t4xcKGZCE0RT3aXPNUOPpQU4Wz6IArIZAGsjcVsFMQ6jWw7BITWjSCUALLVJzkbDHyKJsWw91fJ4Hgd2u499haR0MPEr9KNyvijtQAZCLWZAqqfTrwYZClIO5Lf8ZD"
+    const phoneNumberId = Deno.env.get("PHONE_NUMBER_ID") || "1063051450223385"
     const supportNumber = Deno.env.get("WHATSAPP_SUPPORT_NUMBER") ?? "+91 9811797407"
 
     if (!token || !phoneNumberId) {
@@ -90,43 +104,68 @@ serve(async (req) => {
     const safeDate = String(date || "Flexible").trim()
     const safeTime = String(time || "Flexible").trim()
 
+    const results: Record<string, any> = { admin: null, user: null }
+
+    const cleanAdminPhone = normalizePhone(ADMIN_PHONE)
+
     // 🔴 ADMIN MESSAGE
-    await sendTextMessage({
-      token,
-      phoneNumberId,
-      to: ADMIN_PHONE,
-      body: `🚨 New Booking Alert
-Ref: ${bookingRef}
-Customer: ${safeName}
-Phone: +${cleanPhone}
-Email: ${safeEmail}
-Services: ${safeService}
-Location: ${safeLocation}
-Schedule: ${safeDate} at ${safeTime}
-Booked via: Boys@Work App`,
-    })
+    try {
+      results.admin = await sendMessage({
+        token,
+        phoneNumberId,
+        to: cleanAdminPhone,
+        type: "text",
+        textBody: `📢 New Booking Received: Houserve
+
+An order has been placed through the platform. Please assign a team member immediately.
+
+🛠️ Service Required: ${safeService}
+📞 Customer Contact: +${cleanPhone}
+📍 Location: ${safeLocation}
+🗓️ Booking ID: #${bookingRef}
+🕒 Time: ${safeDate} at ${safeTime}
+
+Please confirm the technician's availability in the dashboard.`,
+      })
+    } catch (e) {
+      console.error("Admin message failed:", e)
+      results.admin = { error: e instanceof Error ? e.message : String(e) }
+    }
 
     // 🟢 USER MESSAGE
-    await sendTextMessage({
-      token,
-      phoneNumberId,
-      to: cleanPhone,
-      body: `Hi ${safeName} 👋
-Your booking is confirmed ✅
-Ref: ${bookingRef}
-Service(s): ${safeService}
-Visit slot: ${safeDate} at ${safeTime}
-Address: ${safeLocation}
+    try {
+      results.user = await sendMessage({
+        token,
+        phoneNumberId,
+        to: cleanPhone,
+        type: "text",
+        textBody: `✅ Booking Confirmed!
 
-Our team will call you shortly to reconfirm.
-Need urgent help? Reply here or call ${supportNumber}.`,
-    })
+Hello ${safeName},
+
+Thank you for choosing Houserve. Your request for ${safeService} has been successfully received and confirmed.
+
+Details:
+📍 Location: ${safeLocation}
+🛠️ Service: ${safeService}
+🆔 Booking ID: ${bookingRef}
+
+Our team member will reach out to you shortly to coordinate the visit. If you need to make any changes, please reply directly to this message.
+
+Thank you for letting us serve you!
+— Team Houserve`,
+      })
+    } catch (e) {
+      console.error("User message failed:", e)
+      results.user = { error: e instanceof Error ? e.message : String(e) }
+    }
 
     return new Response(JSON.stringify({
       success: true,
       message: "WhatsApp notifications sent",
       bookingRef,
       recipient: maskPhone(cleanPhone),
+      results,
     }), {
       headers: { 'Content-Type': 'application/json', ...corsHeaders }
     })

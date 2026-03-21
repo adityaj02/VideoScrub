@@ -12,8 +12,8 @@ export default function ServiceGrid({ SERVICES, addToCart, isInCart, setSelected
                 <h2 className="text-4xl lg:text-6xl font-black premium-text tracking-tighter leading-tight py-4 overflow-visible">Technical Hub</h2>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8 text-left">
-                {SERVICES.slice(0, 4).map((service) => (
-                    <div key={service.id} className={`glass reflect-card p-8 rounded-[48px] flex flex-col justify-between border transition-all duration-500 hover:scale-[1.02] ${colors.glass} ${isInCart?.(service.id) ? 'in-cart-highlight' : ''}`}>
+                {SERVICES.map((service) => (
+                    <div key={service.id} className={`glass reflect-card p-6 md:p-8 rounded-[32px] md:rounded-[48px] flex flex-col justify-between border transition-all duration-500 hover:scale-[1.02] ${colors.glass} ${isInCart?.(service.id) ? 'in-cart-highlight' : ''}`}>
                         <div className="text-left">
                             <div className="flex justify-between items-start mb-6">
                                 <div className="w-20 h-20 rounded-3xl overflow-hidden bg-black shrink-0 shadow-lg border border-white/5 text-left">
@@ -25,7 +25,7 @@ export default function ServiceGrid({ SERVICES, addToCart, isInCart, setSelected
                             </div>
                             <h3 className="text-2xl font-black premium-text tracking-tighter mb-2 py-1 overflow-visible text-left">{service.title}</h3>
                             <p className={`text-[11px] uppercase tracking-[0.25em] font-black mb-4 ${colors.cardText}`}>₹{Number(service.price || 0).toLocaleString('en-IN')}</p>
-                            <p className={`text-xs leading-relaxed mb-6 font-medium line-clamp-2 ${colors.cardText} text-left`}>{service.desc}</p>
+                            <p className={`text-xs leading-relaxed mb-6 font-medium ${colors.cardText} text-left`}>{service.desc}</p>
                             <button onClick={() => setSelectedService?.(service)} className={`text-[9px] uppercase tracking-[0.3em] font-black underline underline-offset-8 mb-8 transition-colors ${colors.text} hover:text-blue-500 block`}>Service Detail</button>
                         </div>
                         <button onClick={() => addToCart?.(service)} className={`w-full py-4 rounded-[22px] text-[10px] font-black uppercase tracking-[0.3em] transition-all active:scale-95 ${isInCart?.(service.id) ? 'bg-blue-600 text-white shadow-blue-500/20' : (theme === 'dark' ? 'bg-white text-black' : 'bg-[#1d1d1f] text-white shadow-sm')}`}>

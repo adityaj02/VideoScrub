@@ -74,6 +74,7 @@ export default function CartSummary({
 }) {
     const [selectedDate, setSelectedDate] = useState("");
     const [selectedTime, setSelectedTime] = useState("");
+    const [selectedAddress, setSelectedAddress] = useState("");
     const [localError, setLocalError] = useState("");
 
     const colors = {
@@ -121,8 +122,13 @@ export default function CartSummary({
             return;
         }
 
+        if (!selectedAddress.trim()) {
+            setLocalError("Please enter your complete service address.");
+            return;
+        }
+
         setLocalError("");
-        await onConfirmBooking?.({ date: selectedDate, time: selectedTime });
+        await onConfirmBooking?.({ date: selectedDate, time: selectedTime, address: selectedAddress.trim() });
     };
 
     return (
@@ -239,13 +245,13 @@ export default function CartSummary({
                                         setSelectedDate(e.target.value);
                                         setSelectedTime("");
                                     }}
-                                    className={`w-full rounded-2xl border bg-transparent px-4 py-3 text-sm ${theme === 'dark' ? 'border-white/20 text-white [color-scheme:dark]' : 'border-black/20 text-black [color-scheme:light]'}`}
+                                    className={`w-full rounded-2xl border bg-transparent px-4 py-3 text-sm flex-shrink-0 ${theme === 'dark' ? 'border-white/20 text-white [color-scheme:dark]' : 'border-black/20 text-black [color-scheme:light]'}`}
                                 />
 
                                 <select
                                     value={selectedTime}
                                     onChange={(e) => setSelectedTime(e.target.value)}
-                                    className={`w-full rounded-2xl border bg-transparent px-4 py-3 text-sm ${theme === 'dark' ? 'border-white/20 text-white' : 'border-black/20 text-black'}`}
+                                    className={`w-full rounded-2xl border bg-transparent px-4 py-3 text-sm flex-shrink-0 ${theme === 'dark' ? 'border-white/20 text-white' : 'border-black/20 text-black'}`}
                                 >
                                     <option value="">Select time slot</option>
                                     {timeSlots.map((slot) => (
@@ -255,6 +261,14 @@ export default function CartSummary({
                                     ))}
                                 </select>
                             </div>
+                            
+                            <textarea
+                                value={selectedAddress}
+                                onChange={(e) => setSelectedAddress(e.target.value)}
+                                placeholder="Enter complete service address (House No, Building, Street, Area...)"
+                                rows={3}
+                                className={`w-full rounded-2xl border bg-transparent px-4 py-3 text-sm resize-none ${theme === 'dark' ? 'border-white/20 text-white placeholder-white/40' : 'border-black/20 text-black placeholder-black/40'}`}
+                            />
                         </div>
 
                         {selectedDate && timeSlots.length === 0 && (

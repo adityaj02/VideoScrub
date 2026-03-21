@@ -397,7 +397,7 @@ export default function Dashboard() {
 
   const isInCart = (serviceId) => cartItems.some((item) => idsEqual(item.service_id, serviceId));
 
-  const confirmBooking = async ({ date, time }) => {
+  const confirmBooking = async ({ date, time, address }) => {
     if (submittingBooking) return;
     if (!userId) {
       setCheckoutMessage("Session expired. Please login again.");
@@ -433,6 +433,7 @@ export default function Dashboard() {
         status: "pending",
         scheduled_date: date || null,
         scheduled_time: time || null,
+        address: address || null,
       }))
     );
 
@@ -454,7 +455,7 @@ export default function Dashboard() {
           phone: profile?.phone, // The edge function will handle prefixing format
           email: profile?.email || "N/A",
           service: serviceNames,
-          location: profile?.location,
+          location: address || profile?.location,
           date: date || "Flexible",
           time: time || "Flexible",
         },
@@ -464,7 +465,7 @@ export default function Dashboard() {
       // We don't block the UI if WhatsApp fails, booking is already inserted.
     }
 
-    setBookingMetadata({ date, time, cart_items: cartItems });
+    setBookingMetadata({ date, time, address, cart_items: cartItems });
     setCartItems([]);
     setBookingSuccess(true);
     setSubmittingBooking(false);
