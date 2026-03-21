@@ -26,10 +26,14 @@ const SERVICE_IMAGES = {
   "appliance repair": "/Assets/construction.png",
 };
 
-const DELHI_REGEX = /(delhi|new delhi)/i;
-
 const isValidPhone = (value) => /^\d{10,15}$/.test(String(value || ""));
 const idsEqual = (left, right) => String(left) === String(right);
+const formatPhoneForDisplay = (value = "") => {
+  const clean = String(value).replace(/\D/g, "");
+  if (!clean) return "Pending";
+  if (clean.length === 10) return `+91 ${clean}`;
+  return `+${clean}`;
+};
 
 export default function Dashboard() {
   const [theme, setTheme] = useState("dark");
@@ -55,8 +59,6 @@ export default function Dashboard() {
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [bookingMetadata, setBookingMetadata] = useState(null);
   const contentRef = useRef(null);
-
-  const isDelhiLocation = (value = "") => DELHI_REGEX.test(String(value));
 
   const normalizeService = (row) => {
     const key = String(row?.name || "").toLowerCase();
@@ -395,9 +397,6 @@ export default function Dashboard() {
 
   const isInCart = (serviceId) => cartItems.some((item) => idsEqual(item.service_id, serviceId));
 
-  const canCheckoutByLocation = true; // Services open to all; NCR info shown at cart
-  const locationWarning = "";
-
   const confirmBooking = async ({ date, time }) => {
     if (submittingBooking) return;
     if (!userId) {
@@ -487,8 +486,6 @@ export default function Dashboard() {
     !!profile?.location &&
     isValidPhone(profile?.phone) &&
     !profileLoading;
-  const hasNonBookableItems = false; // All services are bookable
-
   const colors = {
     bg: theme === "dark" ? "bg-[#03060d]" : "bg-[#f5f5f7]",
     text: theme === "dark" ? "text-white" : "text-[#1d1d1f]",
@@ -505,6 +502,7 @@ export default function Dashboard() {
   return (
     <>
       <style>{`
+        html, body { scroll-behavior: smooth; }
         .glass { backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); box-shadow: 0 10px 40px rgba(0,0,0,0.3); }
         .premium-text {
           background: ${theme === "dark" ? "linear-gradient(180deg, #ffffff 0%, #9ea7bd 100%)" : "none"};
@@ -577,6 +575,13 @@ export default function Dashboard() {
                 <div className="px-6 lg:px-24 pt-8 pb-6"><div className={`glass p-8 rounded-[28px] border ${colors.glass}`}>Loading services...</div></div>
               ) : (
                 <>
+                  {!!servicesError && (
+                    <div className="px-6 lg:px-24 pt-8 pb-0">
+                      <div className={`rounded-[18px] border border-amber-500/40 bg-amber-500/10 p-4 text-sm ${theme === 'dark' ? 'text-amber-200' : 'text-amber-800'}`}>
+                        {servicesError}
+                      </div>
+                    </div>
+                  )}
                   <ServiceSlider SERVICES={services} activeIdx={activeIdx} setActiveIdx={setActiveIdx} addToCart={addToCart} isInCart={isInCart} theme={theme} />
                   <ServiceGrid SERVICES={services} addToCart={addToCart} isInCart={isInCart} setSelectedService={setSelectedService} theme={theme} />
                 </>
@@ -642,6 +647,11 @@ export default function Dashboard() {
                 <span className={`text-[10px] md:text-[12px] uppercase tracking-[0.6em] ${colors.subtext} font-bold block mb-4`}>Repository</span>
                 <h2 className="text-5xl lg:text-7xl font-black premium-text tracking-tighter leading-tight py-4">Services</h2>
               </div>
+              {!!servicesError && (
+                <div className={`mb-6 rounded-[18px] border border-amber-500/40 bg-amber-500/10 p-4 text-sm ${theme === 'dark' ? 'text-amber-200' : 'text-amber-800'}`}>
+                  {servicesError}
+                </div>
+              )}
               <ServiceSlider SERVICES={services} activeIdx={activeIdx} setActiveIdx={setActiveIdx} addToCart={addToCart} isInCart={isInCart} theme={theme} />
               <div className="pt-10">
                 <ServiceGrid SERVICES={services} addToCart={addToCart} isInCart={isInCart} setSelectedService={setSelectedService} theme={theme} />
@@ -695,11 +705,66 @@ export default function Dashboard() {
               onConfirmBooking={confirmBooking}
               isCheckoutAvailable={canCheckout}
               checkoutMessage={checkoutMessage}
-              locationWarning={locationWarning}
               submitting={submittingBooking}
               bookingSuccess={bookingSuccess}
               bookingMetadata={bookingMetadata}
             />
+          )}
+
+          {currentView === "about" && (
+            <section id="about-experience" className="px-6 lg:px-24 py-14 lg:py-20">
+              <div className={`glass rounded-[36px] border p-8 lg:p-12 ${colors.glass}`}>
+                <p className={`text-[11px] uppercase tracking-[0.4em] font-black ${colors.subtext}`}>About Boys@Work</p>
+                <h2 className="mt-4 text-4xl lg:text-6xl font-black premium-text">Reliable help for every home.</h2>
+                <p className={`mt-6 text-base lg:text-lg leading-relaxed ${colors.cardText}`}>
+                  We connect families and businesses with verified experts for essential services across Delhi NCR.
+                  Our focus is simple: transparent pricing, punctual visits, and quality-first execution.
+                </p>
+                <div className="mt-10 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {[
+                    { title: "Verified Workforce", detail: "Experienced professionals with quality checks on every booking." },
+                    { title: "Transparent Process", detail: "Clear service details, expected timelines, and fair pricing." },
+                    { title: "Customer First", detail: "Fast support and proactive updates from booking to completion." },
+                  ].map((item) => (
+                    <div key={item.title} className={`rounded-[20px] border p-5 ${theme === "dark" ? "border-white/10 bg-white/[0.03]" : "border-black/10 bg-black/[0.02]"}`}>
+                      <h3 className={`text-lg font-black ${colors.text}`}>{item.title}</h3>
+                      <p className={`mt-3 text-sm ${colors.cardText}`}>{item.detail}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          )}
+
+          {currentView === "contact" && (
+            <section className="px-6 lg:px-24 py-14 lg:py-20">
+              <div className={`glass rounded-[36px] border p-8 lg:p-12 ${colors.glass}`}>
+                <p className={`text-[11px] uppercase tracking-[0.4em] font-black ${colors.subtext}`}>Contact</p>
+                <h2 className="mt-4 text-4xl lg:text-6xl font-black premium-text">Let's plan your service.</h2>
+                <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-5">
+                  <div className={`rounded-[20px] border p-6 ${theme === "dark" ? "border-white/10 bg-white/[0.03]" : "border-black/10 bg-black/[0.02]"}`}>
+                    <p className={`text-[10px] uppercase tracking-[0.3em] ${colors.subtext}`}>Phone</p>
+                    <p className={`mt-2 text-2xl font-black ${colors.text}`}>+91 9811797407</p>
+                  </div>
+                  <div className={`rounded-[20px] border p-6 ${theme === "dark" ? "border-white/10 bg-white/[0.03]" : "border-black/10 bg-black/[0.02]"}`}>
+                    <p className={`text-[10px] uppercase tracking-[0.3em] ${colors.subtext}`}>Email</p>
+                    <p className={`mt-2 text-2xl font-black break-all ${colors.text}`}>support@boysatwork.in</p>
+                  </div>
+                  <div className={`rounded-[20px] border p-6 lg:col-span-2 ${theme === "dark" ? "border-white/10 bg-white/[0.03]" : "border-black/10 bg-black/[0.02]"}`}>
+                    <p className={`text-[10px] uppercase tracking-[0.3em] ${colors.subtext}`}>Service Address</p>
+                    <p className={`mt-2 text-lg font-semibold ${colors.text}`}>9 Guru Nanak Market, New Delhi - 110024</p>
+                    <p className={`mt-4 text-sm ${colors.cardText}`}>
+                      Logged-in profile contact: {profile?.name || "Pending name"} · {formatPhoneForDisplay(profile?.phone)}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-8">
+                  <button onClick={() => switchView("cart")} className="px-7 py-3 rounded-full bg-blue-600 text-white text-[11px] uppercase font-black tracking-widest">
+                    Continue to Booking
+                  </button>
+                </div>
+              </div>
+            </section>
           )}
 
           <footer id="footer-main" className={`glass p-12 lg:p-20 m-6 lg:mx-24 rounded-[56px] border ${colors.glass} relative z-20 mt-20 text-left shadow-2xl`}>
