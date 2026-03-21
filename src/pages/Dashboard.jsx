@@ -446,9 +446,9 @@ export default function Dashboard() {
     }
 
     // Trigger WhatsApp notification via Supabase Edge Functions
+    const serviceNames = cartItems.map((item) => item.name || item.title).join(", ");
     try {
       // Loop over items to send summary, or just send the first service name.
-      const serviceNames = cartItems.map((item) => item.name || item.title).join(", ");
       await supabase.functions.invoke("send-whatsapp", {
         body: {
           name: profile?.name,
@@ -463,6 +463,24 @@ export default function Dashboard() {
     } catch (err) {
       console.error("Failed to trigger WhatsApp notification:", err);
       // We don't block the UI if WhatsApp fails, booking is already inserted.
+    }
+
+    // Trigger Email notification via Resend (send-email edge function)
+    try {
+      await supabase.functions.invoke("send-email", {
+        body: {
+          name: profile?.name,
+          email: profile?.email,
+          phone: profile?.phone,
+          service: serviceNames,
+          location: address || profile?.location,
+          date: date || "Flexible",
+          time: time || "Flexible",
+        },
+      });
+    } catch (err) {
+      console.error("Failed to trigger email notification:", err);
+      // We don't block the UI if email fails, booking is already inserted.
     }
 
     setBookingMetadata({ date, time, address, cart_items: cartItems });
@@ -583,8 +601,8 @@ export default function Dashboard() {
                       </div>
                     </div>
                   )}
-                  <ServiceSlider SERVICES={services} activeIdx={activeIdx} setActiveIdx={setActiveIdx} addToCart={addToCart} isInCart={isInCart} theme={theme} />
-                  <ServiceGrid SERVICES={services} addToCart={addToCart} isInCart={isInCart} setSelectedService={setSelectedService} theme={theme} />
+                  <ServiceSlider SERVICES={services} activeIdx={activeIdx} setActiveIdx={setActiveIdx} addToCart={addToCart} isInCart={isInCart} theme={theme} onViewSummary={() => switchView("cart")} />
+                  <ServiceGrid SERVICES={services} addToCart={addToCart} isInCart={isInCart} setSelectedService={setSelectedService} theme={theme} onViewSummary={() => switchView("cart")} />
                 </>
               )}
 
@@ -653,9 +671,9 @@ export default function Dashboard() {
                   {servicesError}
                 </div>
               )}
-              <ServiceSlider SERVICES={services} activeIdx={activeIdx} setActiveIdx={setActiveIdx} addToCart={addToCart} isInCart={isInCart} theme={theme} />
+              <ServiceSlider SERVICES={services} activeIdx={activeIdx} setActiveIdx={setActiveIdx} addToCart={addToCart} isInCart={isInCart} theme={theme} onViewSummary={() => switchView("cart")} />
               <div className="pt-10">
-                <ServiceGrid SERVICES={services} addToCart={addToCart} isInCart={isInCart} setSelectedService={setSelectedService} theme={theme} />
+                <ServiceGrid SERVICES={services} addToCart={addToCart} isInCart={isInCart} setSelectedService={setSelectedService} theme={theme} onViewSummary={() => switchView("cart")} />
               </div>
             </section>
           )}

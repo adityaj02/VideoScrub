@@ -1,4 +1,4 @@
-export default function ServiceSlider({ SERVICES, activeIdx, setActiveIdx, addToCart, isInCart, theme }) {
+export default function ServiceSlider({ SERVICES, activeIdx, setActiveIdx, addToCart, isInCart, theme, onViewSummary }) {
     const colors = {
         subtext: theme === 'dark' ? 'text-white/40' : 'text-[#6e6e73]',
         cardText: theme === 'dark' ? 'text-white/60' : 'text-[#1d1d1f]/80',
@@ -27,7 +27,7 @@ export default function ServiceSlider({ SERVICES, activeIdx, setActiveIdx, addTo
                                         </div>
                                     </div>
                                     <div className="pt-8">
-                                        <button onClick={(e) => { e.stopPropagation(); addToCart?.(service); }} className={`w-full py-6 rounded-[32px] text-[13px] font-black uppercase tracking-[0.4em] transition-all hover:scale-[1.02] active:scale-95 shadow-md ${isInCart?.(service.id) ? 'bg-blue-600 text-white' : (theme === 'dark' ? 'bg-white text-black' : 'bg-[#1d1d1f] text-white')}`}>
+                                        <button onClick={(e) => { e.stopPropagation(); isInCart?.(service.id) ? onViewSummary?.() : addToCart?.(service); }} className={`w-full py-6 rounded-[32px] text-[13px] font-black uppercase tracking-[0.4em] transition-all hover:scale-[1.02] active:scale-95 shadow-md ${isInCart?.(service.id) ? 'bg-blue-600 text-white' : (theme === 'dark' ? 'bg-white text-black' : 'bg-[#1d1d1f] text-white')}`}>
                                             {isInCart?.(service.id) ? 'View in Summary' : 'Add to Cart'}
                                         </button>
                                     </div>

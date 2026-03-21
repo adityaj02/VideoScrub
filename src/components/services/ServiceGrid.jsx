@@ -1,4 +1,4 @@
-export default function ServiceGrid({ SERVICES, addToCart, isInCart, setSelectedService, theme }) {
+export default function ServiceGrid({ SERVICES, addToCart, isInCart, setSelectedService, theme, onViewSummary }) {
     const colors = {
         cardText: theme === 'dark' ? 'text-white/60' : 'text-[#1d1d1f]/80',
         text: theme === 'dark' ? 'text-white' : 'text-[#1d1d1f]',
@@ -28,7 +28,7 @@ export default function ServiceGrid({ SERVICES, addToCart, isInCart, setSelected
                             <p className={`text-xs leading-relaxed mb-6 font-medium ${colors.cardText} text-left`}>{service.desc}</p>
                             <button onClick={() => setSelectedService?.(service)} className={`text-[9px] uppercase tracking-[0.3em] font-black underline underline-offset-8 mb-8 transition-colors ${colors.text} hover:text-blue-500 block`}>Service Detail</button>
                         </div>
-                        <button onClick={() => addToCart?.(service)} className={`w-full py-4 rounded-[22px] text-[10px] font-black uppercase tracking-[0.3em] transition-all active:scale-95 ${isInCart?.(service.id) ? 'bg-blue-600 text-white shadow-blue-500/20' : (theme === 'dark' ? 'bg-white text-black' : 'bg-[#1d1d1f] text-white shadow-sm')}`}>
+                        <button onClick={(e) => { e.stopPropagation(); isInCart?.(service.id) ? onViewSummary?.() : addToCart?.(service); }} className={`w-full py-4 rounded-[22px] text-[10px] font-black uppercase tracking-[0.3em] transition-all active:scale-95 ${isInCart?.(service.id) ? 'bg-blue-600 text-white shadow-blue-500/20' : (theme === 'dark' ? 'bg-white text-black' : 'bg-[#1d1d1f] text-white shadow-sm')}`}>
                             {isInCart?.(service.id) ? 'View in Summary' : 'Add to Cart'}
                         </button>
                     </div>

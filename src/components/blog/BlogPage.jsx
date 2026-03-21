@@ -41,7 +41,7 @@ export default function BlogPage() {
   return (
     <main className="min-h-screen bg-[#03060d] text-white px-6 py-16 lg:px-24">
       <section className="max-w-6xl mx-auto">
-        <h1 className="text-4xl lg:text-6xl font-black">Boys@Work Blog</h1>
+        <h1 className="text-4xl lg:text-6xl font-black">Houserve Blog</h1>
         <p className="mt-4 text-white/70 max-w-2xl">Service guides, maintenance checklists, and local Delhi household care insights.</p>
 
         <div className="mt-10 grid grid-cols-1 md:grid-cols-2 gap-8">

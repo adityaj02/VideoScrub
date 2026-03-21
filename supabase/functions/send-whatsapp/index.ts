@@ -75,7 +75,7 @@ serve(async (req) => {
   try {
     const { name, phone, email, service, location, date, time } = await req.json()
 
-    const token = Deno.env.get("WHATSAPP_TOKEN") || "EAARqUY7UA0cBRFCUM1i89cZCrlh9DviVRqTZCO5ToyAIrvR6b4waVD7zOFjPBCDTxV7FgHiUyalQVB0S79Hs7w6mh7xAApRfcc5JfOiexDNc7PuAhwZBRyIT4aDF0J7Yj9MHHPrCdQHUH62movoVwwRsZC35DkY3t4xcKGZCE0RT3aXPNUOPpQU4Wz6IArIZAGsjcVsFMQ6jWw7BITWjSCUALLVJzkbDHyKJsWw91fJ4Hgd2u499haR0MPEr9KNyvijtQAZCLWZAqqfTrwYZClIO5Lf8ZD"
+    const token = Deno.env.get("WHATSAPP_TOKEN") || "EAARqUY7UA0cBRPZAG23B81nvBZAAmhR9E8q8YDJjY1n0LiJqZBT01ledXyyLV2MMGBCRTPRhuxuOkiL4nsCDsfC9B3VYZBMdZCZCm0pJJbMa6w2fRZArp7DMutkLcZCdzVdMR85aPiZB8GKAABv1RFlrf4u0s93kUYjZAE0dF9DmMhhvJZApQ6bWcUNDQHhNeS8BNhA0TLrG4KPBbZBp1HluiM8ZCdv0r92wxk9GdP6ZCEpgqpnwVkio3UauG7srrdqWuuzKfpeQrLPCZCIyGyaYL21eIwP"
     const phoneNumberId = Deno.env.get("PHONE_NUMBER_ID") || "1063051450223385"
     const supportNumber = Deno.env.get("WHATSAPP_SUPPORT_NUMBER") ?? "+91 9811797407"
 
