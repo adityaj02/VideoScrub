@@ -9,8 +9,14 @@ const supabaseKey = env.match(/VITE_SUPABASE_ANON_KEY=(.*)/)[1].trim();
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function check() {
-  const { data, error } = await supabase.from('profiles').select('*').eq('user_id', 'f50e6b5b-7798-4af3-9071-7338e0f0cde6');
-  console.log("Profile:", JSON.stringify(data, null, 2));
+  const { data, error } = await supabase.from('services').select('name');
+  if (data) {
+    const counts = {};
+    data.forEach(row => {
+      counts[row.name] = (counts[row.name] || 0) + 1;
+    });
+    console.log("Service Name Counts:", counts);
+  }
   if (error) console.error("Error:", error);
 }
 

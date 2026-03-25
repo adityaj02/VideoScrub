@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
-import { saveUserProfile } from "../lib/profile";
+import { saveUserProfile, getUserProfile } from "../lib/profile";
 import VideoBackground from "../components/background/VideoBackground";
 import ThreeScene from "../components/background/ThreeScene";
 
@@ -9,7 +9,32 @@ export default function Profile({ onComplete }) {
   const [phone, setPhone] = useState("");
   const [location, setLocation] = useState("");
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    async function fetchInitialData() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const profile = await getUserProfile({ userId: user.id });
+          if (profile) {
+            if (profile.name) setName(profile.name);
+            if (profile.phone) setPhone(profile.phone);
+            if (profile.location) setLocation(profile.location);
+          } else if (user.app_metadata?.provider === "google") {
+            const googleName = user.user_metadata?.full_name || user.user_metadata?.name;
+            if (googleName) setName(googleName);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching initial profile data:", err);
+      } finally {
+        setInitialLoading(false);
+      }
+    }
+    fetchInitialData();
+  }, []);
 
   const trimmedName = useMemo(() => name.trim(), [name]);
   const normalizedPhone = useMemo(() => phone.replace(/\D/g, "").slice(0, 15), [phone]);
@@ -107,88 +132,98 @@ export default function Profile({ onComplete }) {
       >
         <div style={{ textAlign: "center", marginBottom: "12px" }}>
           <h2 style={{ fontSize: "24px", fontWeight: 700, color: "#fff", marginBottom: "8px" }}>Complete Profile</h2>
-          <p style={{ fontSize: "13px", color: "rgba(255,255,255,0.5)" }}>Almost there! Tell us who you are.</p>
+          <p style={{ fontSize: "13px", color: "rgba(255,255,255,0.5)" }}>
+            {initialLoading ? "Fetching your details..." : "Almost there! Tell us who you are."}
+          </p>
         </div>
 
-        <input
-          placeholder="Full Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          style={{
-            width: "100%",
-            padding: "14px 16px",
-            borderRadius: "14px",
-            background: "rgba(0,0,0,0.38)",
-            border: "1px solid rgba(255,255,255,0.16)",
-            color: "#fff",
-            fontSize: "14px",
-            outline: "none",
-            fontFamily: "inherit",
-          }}
-        />
+        {initialLoading ? (
+          <div style={{ display: "flex", justifyContent: "center", padding: "40px" }}>
+             <div className="w-8 h-8 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"></div>
+          </div>
+        ) : (
+          <>
+            <input
+              placeholder="Full Name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "14px 16px",
+                borderRadius: "14px",
+                background: "rgba(0,0,0,0.38)",
+                border: "1px solid rgba(255,255,255,0.16)",
+                color: "#fff",
+                fontSize: "14px",
+                outline: "none",
+                fontFamily: "inherit",
+              }}
+            />
 
-        <input
-          placeholder="Contact Number"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          inputMode="tel"
-          style={{
-            width: "100%",
-            padding: "14px 16px",
-            borderRadius: "14px",
-            background: "rgba(0,0,0,0.38)",
-            border: "1px solid rgba(255,255,255,0.16)",
-            color: "#fff",
-            fontSize: "14px",
-            outline: "none",
-            fontFamily: "inherit",
-          }}
-        />
+            <input
+              placeholder="Contact Number"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              inputMode="tel"
+              style={{
+                width: "100%",
+                padding: "14px 16px",
+                borderRadius: "14px",
+                background: "rgba(0,0,0,0.38)",
+                border: "1px solid rgba(255,255,255,0.16)",
+                color: "#fff",
+                fontSize: "14px",
+                outline: "none",
+                fontFamily: "inherit",
+              }}
+            />
 
-        <input
-          placeholder="Location"
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-          style={{
-            width: "100%",
-            padding: "14px 16px",
-            borderRadius: "14px",
-            background: "rgba(0,0,0,0.38)",
-            border: "1px solid rgba(255,255,255,0.16)",
-            color: "#fff",
-            fontSize: "14px",
-            outline: "none",
-            fontFamily: "inherit",
-          }}
-        />
+            <input
+              placeholder="Location"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "14px 16px",
+                borderRadius: "14px",
+                background: "rgba(0,0,0,0.38)",
+                border: "1px solid rgba(255,255,255,0.16)",
+                color: "#fff",
+                fontSize: "14px",
+                outline: "none",
+                fontFamily: "inherit",
+              }}
+            />
 
-        {errorMessage && (
-          <p style={{ color: "#fca5a5", fontSize: "13px", margin: 0 }} role="alert">
-            {errorMessage}
-          </p>
+            {errorMessage && (
+              <p style={{ color: "#fca5a5", fontSize: "13px", margin: 0 }} role="alert">
+                {errorMessage}
+              </p>
+            )}
+
+            <button
+              onClick={saveProfile}
+              disabled={loading}
+              style={{
+                width: "100%",
+                marginTop: "10px",
+                padding: "14px",
+                borderRadius: "14px",
+                background: "rgba(255,255,255,0.12)",
+                border: "1px solid rgba(255,255,255,0.22)",
+                color: "#fff",
+                fontSize: "14px",
+                fontWeight: 700,
+                letterSpacing: "0.05em",
+                cursor: loading ? "not-allowed" : "pointer",
+                fontFamily: "inherit",
+                opacity: loading ? 0.65 : 1,
+              }}
+            >
+              {loading ? "Saving Profile..." : "Continue to Dashboard →"}
+            </button>
+          </>
         )}
-
-        <button
-          onClick={saveProfile}
-          disabled={loading}
-          style={{
-            width: "100%",
-            marginTop: "10px",
-            padding: "14px",
-            borderRadius: "14px",
-            background: "rgba(255,255,255,0.12)",
-            border: "1px solid rgba(255,255,255,0.22)",
-            color: "#fff",
-            fontSize: "14px",
-            fontWeight: 700,
-            letterSpacing: "0.05em",
-            cursor: loading ? "not-allowed" : "pointer",
-            fontFamily: "inherit",
-            opacity: loading ? 0.65 : 1,
-          }}
-        >
-          {loading ? "Saving Profile..." : "Continue to Dashboard →"}
-        </button>
       </div>
     </div>
   );

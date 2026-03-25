@@ -48,7 +48,7 @@ export default function Authenticated() {
             <div className="glass profile-card">
 
                 <h2 className="login-title">
-                    Welcome to Boys@Work
+                    Welcome to Houserve
                 </h2>
 
                 <p className="company-brief">

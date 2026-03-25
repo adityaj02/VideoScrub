@@ -2,37 +2,41 @@ export default function ServiceGrid({ SERVICES, addToCart, isInCart, setSelected
     const colors = {
         cardText: theme === 'dark' ? 'text-white/60' : 'text-[#1d1d1f]/80',
         text: theme === 'dark' ? 'text-white' : 'text-[#1d1d1f]',
+        subtext: theme === 'dark' ? 'text-white/40' : 'text-[#6e6e73]',
         glass: theme === 'dark' ? 'bg-white/[0.04] border-white/10 shadow-lg' : 'bg-white/90 border-black/5 shadow-md',
     };
 
+    const pastelColors = ['bg-blue-100', 'bg-amber-100', 'bg-green-100', 'bg-cyan-100', 'bg-purple-100'];
+
     return (
-        <section className="px-6 lg:px-24 py-20 relative z-20 mt-16 text-left border-t border-white/5">
-            <div className="max-w-7xl mx-auto mb-16 text-left">
-                <span className="glass px-6 py-2 rounded-full text-[10px] uppercase tracking-[0.4em] font-bold border border-white/10 mb-6 inline-block">Popular Connect</span>
-                <h2 className="text-4xl lg:text-6xl font-black premium-text tracking-tighter leading-tight py-4 overflow-visible">Technical Hub</h2>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8 text-left">
-                {SERVICES.map((service) => (
-                    <div key={service.id} className={`glass reflect-card p-6 md:p-8 rounded-[32px] md:rounded-[48px] flex flex-col justify-between border transition-all duration-500 hover:scale-[1.02] ${colors.glass} ${isInCart?.(service.id) ? 'in-cart-highlight' : ''}`}>
-                        <div className="text-left">
-                            <div className="flex justify-between items-start mb-6">
-                                <div className="w-20 h-20 rounded-3xl overflow-hidden bg-black shrink-0 shadow-lg border border-white/5 text-left">
-                                    <img src={service.img} className="w-full h-full object-cover opacity-90" alt={service.title} />
-                                </div>
-                                <div className="text-right">
-                                    <div className={`text-xl font-black tracking-tighter ${colors.text}`}>{service.rating} ★</div>
-                                </div>
+        <section className="px-6 lg:px-24 py-8 lg:py-12 relative z-20 text-left">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6 text-left">
+                {SERVICES.slice(0, 5).map((service, idx) => (
+                    <div 
+                        key={service.id} 
+                        onClick={() => setSelectedService?.(service)} 
+                        className={`p-5 lg:p-6 rounded-[24px] flex flex-col justify-between border cursor-pointer transition-all duration-300 hover:scale-[1.02] active:scale-95 ${theme === 'dark' ? 'bg-[#292929] border-[#333]' : 'bg-[#ffffff] border-[#e5e5ea]'} shadow-sm`}
+                    >
+                        <div className="flex justify-between items-start mb-8">
+                            <div className={`w-12 h-12 rounded-[14px] ${pastelColors[idx % pastelColors.length]} flex items-center justify-center overflow-hidden p-2`}>
+                                <img src={service.img} className="w-full h-full object-contain filter drop-shadow-sm" alt="" />
                             </div>
-                            <h3 className="text-2xl font-black premium-text tracking-tighter mb-2 py-1 overflow-visible text-left">{service.title}</h3>
-                            <p className={`text-[11px] uppercase tracking-[0.25em] font-black mb-4 ${colors.cardText}`}>₹{Number(service.price || 0).toLocaleString('en-IN')}</p>
-                            <p className={`text-xs leading-relaxed mb-6 font-medium ${colors.cardText} text-left`}>{service.desc}</p>
-                            <button onClick={() => setSelectedService?.(service)} className={`text-[9px] uppercase tracking-[0.3em] font-black underline underline-offset-8 mb-8 transition-colors ${colors.text} hover:text-blue-500 block`}>Service Detail</button>
+                            <div className={`text-[11px] font-medium ${colors.subtext}`}>{Math.floor((idx + 1) * 7.5 + 12)} pros</div>
                         </div>
-                        <button onClick={(e) => { e.stopPropagation(); isInCart?.(service.id) ? onViewSummary?.() : addToCart?.(service); }} className={`w-full py-4 rounded-[22px] text-[10px] font-black uppercase tracking-[0.3em] transition-all active:scale-95 ${isInCart?.(service.id) ? 'bg-blue-600 text-white shadow-blue-500/20' : (theme === 'dark' ? 'bg-white text-black' : 'bg-[#1d1d1f] text-white shadow-sm')}`}>
-                            {isInCart?.(service.id) ? 'View in Summary' : 'Add to Cart'}
-                        </button>
+                        <div>
+                            <h4 className={`text-[16px] font-bold tracking-tight ${colors.text}`}>{service.title}</h4>
+                            <p className={`text-[12px] mt-1 ${colors.subtext}`}>from ₹{Number(service.price || 0).toLocaleString('en-IN')}</p>
+                        </div>
                     </div>
                 ))}
+                
+                <div 
+                    onClick={() => onViewSummary?.()} 
+                    className={`p-5 lg:p-6 rounded-[24px] border border-dashed flex flex-col items-center justify-center cursor-pointer transition-all ${theme === 'dark' ? 'hover:bg-white/5 border-white/20 text-white/50 hover:text-white/80' : 'hover:bg-black/5 border-black/20 text-black/50 hover:text-black/80'} active:scale-95`}
+                >
+                    <span className="text-[20px] mb-2 font-light">+</span>
+                    <span className="text-[13px] font-medium tracking-tight">Browse all services</span>
+                </div>
             </div>
         </section>
     );

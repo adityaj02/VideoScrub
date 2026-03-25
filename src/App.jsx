@@ -23,10 +23,28 @@ export default function App() {
 
       try {
         const profile = await getUserProfile({ userId: user.id });
-        const hasProfile = Boolean(profile?.name);
-        setProfileComplete(hasProfile);
+        
+        // A profile is "complete" ONLY if it has name, phone, AND location
+        let isComplete = Boolean(profile?.name && profile?.phone && profile?.location);
 
-        if (hasProfile) {
+        // If not complete but Google user, ensure Name/Email are synced to DB
+        if (!isComplete && user.app_metadata?.provider === 'google') {
+          const fullName = user.user_metadata?.full_name || user.user_metadata?.name;
+          if (fullName && (!profile || !profile.name)) {
+            await supabase.from("profiles").upsert(
+              {
+                user_id: user.id,
+                name: fullName,
+                email: user.email,
+              },
+              { onConflict: 'user_id' }
+            );
+          }
+        }
+
+        setProfileComplete(isComplete);
+
+        if (isComplete) {
           localStorage.setItem(`profile_complete:${user.id}`, "true");
           localStorage.setItem(`profile_name:${user.id}`, profile.name);
         }

@@ -36,6 +36,19 @@ export default function Login({ close }) {
     setSent(true);
   };
 
+  const loginWithGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: window.location.origin
+      }
+    });
+
+    if (error) {
+      setErrorMessage(error.message || "Unable to sign in with Google.");
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-[20px]">
       <div className="glass relative w-full max-w-[420px] overflow-hidden rounded-[32px] border border-white/15 bg-[#0a0a0a]/70 p-6 text-white shadow-2xl shadow-black/70 sm:p-10 md:p-12">
@@ -74,6 +87,21 @@ export default function Login({ close }) {
                 className="mt-6 w-full rounded-full border border-white/20 bg-white/10 py-4 text-xs font-bold uppercase tracking-widest text-white shadow-lg shadow-black/40 transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loading ? "Sending..." : "Send Login Link"}
+              </button>
+
+              <div className="relative my-6 flex items-center justify-center">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-white/10"></div>
+                </div>
+                <span className="relative bg-[#0a0a0a] px-4 text-[10px] font-bold uppercase tracking-widest text-white/30">OR</span>
+              </div>
+
+              <button
+                onClick={loginWithGoogle}
+                className="flex w-full items-center justify-center gap-3 rounded-full border border-white/10 bg-white/[0.05] py-4 text-xs font-bold uppercase tracking-widest text-white transition-all hover:bg-white/10 active:scale-[0.98]"
+              >
+                <img src="https://www.google.com/favicon.ico" alt="Google" className="h-4 w-4 opacity-70" />
+                Continue with Google
               </button>
             </>
           ) : (

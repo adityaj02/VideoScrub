@@ -21,7 +21,7 @@ export const BLOG_POSTS = [
     cat: "Deep Cleaning",
     readTime: "8 min read",
     date: "Dec 15, 2025",
-    title: "Best Deep Cleaning Services in Delhi - Trusted Experts at Boys@Work",
+    title: "Best Deep Cleaning Services in Delhi - Trusted Experts at Houserve",
     view: "deep-cleaning-post",
     img: "/Assets/services.png",
     excerpt: "A room-by-room guide to premium deep cleaning that removes hidden dust, allergens, and long-term grime safely.",

@@ -7,6 +7,7 @@ import App from "./App";
 import Login from "./pages/Login"; // classic (with video bg) — kept as fallback
 import BlogPage from "./components/blog/BlogPage";
 import MarketplaceDashboard from "./pages/MarketplaceDashboard";
+import Otp from "./pages/Otp";
 
 export default function Router() {
     return (
@@ -22,6 +23,7 @@ export default function Router() {
 
                 {/* ── Auth flow ── */}
                 <Route path="/login"         element={<LoginPage />} />
+                <Route path="/otp"           element={<Otp />} />
                 <Route path="/auth/callback" element={<AuthCallback />} />
                 <Route path="/profile"       element={<Profile />} />
 

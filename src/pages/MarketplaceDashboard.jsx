@@ -124,7 +124,7 @@ function Sidebar({ view, setView, cartCount }) {
         display: "flex", alignItems: "center", justifyContent: "center",
         fontSize: 18, fontWeight: 900, color: "#fff", marginBottom: 24,
         boxShadow: "0 0 18px rgba(30,110,255,0.5)",
-      }}>B</div>
+      }}>H</div>
 
       {NAV_ITEMS.map(item => {
         const active = view === item.id;
@@ -679,7 +679,7 @@ export default function MarketplaceDashboard() {
                 {view === "blog" ? "📝 Blog" : "ℹ️ About"}
               </h2>
               <p style={{ color: "rgba(255,255,255,0.4)", marginTop: 12, fontSize: 16 }}>
-                {view === "blog" ? "Service tips, home maintenance guides & expert advice coming soon." : "Boys@Work — Delhi's most trusted home services platform."}
+                {view === "blog" ? "Service tips, home maintenance guides & expert advice coming soon." : "Houserve — Delhi's most trusted home services platform."}
               </p>
             </div>
           )}
