@@ -7,7 +7,7 @@ export const BLOG_POSTS = [
     date: "Feb 20, 2026",
     title: "Best Plumber in Lajpat Nagar – Fast, Reliable & Affordable Plumbing Services",
     view: "plumbing-post",
-    img: "/Assets/plumber.png",
+    img: "/Assets/plumbing.png",
     excerpt: "From leak repairs to complete pipeline upgrades, discover what makes a top-tier emergency plumbing partner in Delhi.",
     content: [
       "Plumbing failures often escalate quickly in apartment clusters, especially in older Delhi homes where hidden joints are under stress.",
@@ -23,7 +23,7 @@ export const BLOG_POSTS = [
     date: "Dec 15, 2025",
     title: "Best Deep Cleaning Services in Delhi - Trusted Experts at Houserve",
     view: "deep-cleaning-post",
-    img: "/Assets/services.png",
+    img: "/Assets/facility.png",
     excerpt: "A room-by-room guide to premium deep cleaning that removes hidden dust, allergens, and long-term grime safely.",
     content: [
       "Deep cleaning is most effective when technicians follow a top-to-bottom sequence and use separate tools for kitchen and washroom zones.",
@@ -39,7 +39,7 @@ export const BLOG_POSTS = [
     date: "Nov 20, 2025",
     title: "Essential Home Maintenance Tips for Delhi Monsoon Season",
     view: "monsoon-post",
-    img: "/Assets/construction.png",
+    img: "/Assets/building.png",
     excerpt: "Prevent damp walls, electrical issues, and water damage with proactive fixes before heavy rain starts.",
     content: [
       "Inspect terrace drains, balcony outlets, and exterior wall cracks before peak rains to prevent seepage and standing water.",
@@ -55,7 +55,7 @@ export const BLOG_POSTS = [
     date: "Oct 10, 2025",
     title: "How to Choose the Right AC Service Provider in Delhi",
     view: "ac-post",
-    img: "/Assets/ACservices.png",
+    img: "/Assets/ac-service.png",
     excerpt: "Compare technician quality, spare-part transparency, and warranty support before booking your next AC service.",
     content: [
       "Always ask whether the service includes coil cleaning, gas pressure checks, electrical diagnostics, and drain pipe inspection.",

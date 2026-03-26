@@ -1,72 +1,52 @@
 import { useMemo, useState, useEffect, useCallback } from "react";
 import useLocation from "../../hooks/useLocation";
+import { getThemeTokens } from "../../styles/theme";
 
 function formatCurrency(value) {
     return `₹${Number(value || 0).toLocaleString('en-IN')}`;
-}
-
-const SLOT_START_HOUR = 9;
-const SLOT_END_HOUR = 20;
-const SLOT_STEP_MINUTES = 30;
-const MIN_NOTICE_HOURS = 2;
-
-const formatSlotValue = (date) =>
-    `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-
-const formatSlotLabel = (date) =>
-    date.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
-
-const addMinutes = (date, minutes) => new Date(date.getTime() + minutes * 60 * 1000);
-
-function ceilToNextInterval(date, intervalMinutes = 30) {
-    const next = new Date(date);
-    const minutes = next.getMinutes();
-    const remainder = minutes % intervalMinutes;
-    if (remainder !== 0) {
-        next.setMinutes(minutes + (intervalMinutes - remainder));
-    }
-    next.setSeconds(0, 0);
-    return next;
 }
 
 function buildTimeSlots(selectedDate) {
     if (!selectedDate) return [];
 
     const now = new Date();
-    // Always parse as local time by appending T00:00:00 (without Z)
     const selectedStart = new Date(`${selectedDate}T00:00:00`);
     const selectedEnd = new Date(`${selectedDate}T23:59:59`);
 
     if (Number.isNaN(selectedStart.getTime())) return [];
 
-    // Use local midnight by constructing from the parsed local date
-    const dayStart = new Date(selectedStart);
-    dayStart.setHours(SLOT_START_HOUR, 0, 0, 0);
-
-    const dayEnd = new Date(selectedStart);
-    dayEnd.setHours(SLOT_END_HOUR, 0, 0, 0);
-
-    const earliestBooking = ceilToNextInterval(addMinutes(now, MIN_NOTICE_HOURS * 60), SLOT_STEP_MINUTES);
-
+    const slots = ["10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00"];
     const isToday = now >= selectedStart && now <= selectedEnd;
-    let cursor = isToday ? new Date(Math.max(dayStart.getTime(), earliestBooking.getTime())) : new Date(dayStart);
+    const currentHour = now.getHours();
 
-    const slots = [];
-    while (cursor <= dayEnd) {
-        const timeValue = formatSlotValue(cursor);
-        // Mocking 2 slots as unavailable
-        const isFull = timeValue === "10:00" || timeValue === "14:00";
-        slots.push({ value: timeValue, label: formatSlotLabel(cursor), isFull });
-        cursor = addMinutes(cursor, SLOT_STEP_MINUTES);
-    }
+    return slots.map((time) => {
+        const [hour, min] = time.split(':').map(Number);
+        const isPast = isToday && hour < currentHour + 2;
+        const isUnavailable = time === "12:00" || time === "15:00";
+        const hour12 = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
+        const ampm = hour >= 12 ? 'PM' : 'AM';
 
-    return slots;
+        return {
+            value: time,
+            label: `${hour12}:${min === 0 ? '00' : min} ${ampm}`,
+            isFull: isUnavailable || isPast,
+        };
+    });
+}
+
+function isResolvedLocation(value) {
+    return Boolean(
+        value &&
+        value !== "Detecting..." &&
+        value !== "Location unavailable" &&
+        value !== "Unable to detect location" &&
+        !String(value).toLowerCase().includes("denied")
+    );
 }
 
 export default function CartSummary({
     cartItems,
     removeFromCart,
-    updateQuantity,
     theme,
     setCurrentView,
     onConfirmBooking,
@@ -81,33 +61,32 @@ export default function CartSummary({
     const [checkoutStep, setCheckoutStep] = useState(() => Number(localStorage.getItem("checkout_step") || 0));
     const [selectedDate, setSelectedDate] = useState(() => localStorage.getItem("checkout_date") || "");
     const [selectedTime, setSelectedTime] = useState(() => localStorage.getItem("checkout_time") || "");
-    const [selectedAddress, setSelectedAddress] = useState(() => localStorage.getItem("checkout_address") || "");
+    const [addressDetails, setAddressDetails] = useState(() => {
+        try {
+            const stored = localStorage.getItem("checkout_address_details");
+            return stored ? JSON.parse(stored) : {
+                address: profile?.location || "",
+                city: "New Delhi",
+                pincode: ""
+            };
+        } catch {
+            return { address: "", city: "New Delhi", pincode: "" };
+        }
+    });
+    const [paymentMethod, setPaymentMethod] = useState("pay_on_service");
     const [localError, setLocalError] = useState("");
-    
-    const { location: detectedLocation, isLoading: isLocating, refreshLocation } = useLocation();
+    const colors = getThemeTokens(theme);
+    const { isLoading: isLocating, refreshLocation } = useLocation({ autoStart: false });
 
-    const handleAutoDetect = useCallback(() => {
-        refreshLocation();
+    const handleAutoDetect = useCallback(async () => {
+        const nextLocation = await refreshLocation();
+        if (isResolvedLocation(nextLocation)) {
+            setAddressDetails((prev) => ({ ...prev, address: nextLocation }));
+        }
     }, [refreshLocation]);
 
     useEffect(() => {
-        if (detectedLocation && detectedLocation !== "Detecting..." && detectedLocation !== "Location unavailable" && !detectedLocation.includes("denied")) {
-            setSelectedAddress(prev => {
-                // Only overwrite if current is empty or just a city name
-                if (!prev || prev === profile?.location) return detectedLocation;
-                return prev;
-            });
-        }
-    }, [detectedLocation, profile?.location]);
-
-    useEffect(() => {
-        if (profile?.location && !selectedAddress) {
-            setSelectedAddress(profile.location);
-        }
-    }, [profile?.location, selectedAddress]); // Pre-fill when profile loads
-
-    useEffect(() => {
-        localStorage.setItem("checkout_step", checkoutStep);
+        localStorage.setItem("checkout_step", String(checkoutStep));
     }, [checkoutStep]);
 
     useEffect(() => {
@@ -118,16 +97,11 @@ export default function CartSummary({
         localStorage.setItem("checkout_time", selectedTime);
     }, [selectedTime]);
 
-    useEffect(() => {
-        localStorage.setItem("checkout_address", selectedAddress);
-    }, [selectedAddress]);
+    const resolvedAddress = addressDetails.address || profile?.location || "";
 
-    const colors = {
-        subtext: theme === 'dark' ? 'text-white/40' : 'text-[#6e6e73]',
-        text: theme === 'dark' ? 'text-white' : 'text-[#1d1d1f]',
-        glass: theme === 'dark' ? 'bg-white/[0.04] border-white/10 shadow-lg' : 'bg-white/90 border-black/5 shadow-md',
-        inputBg: theme === 'dark' ? 'bg-transparent border-white/20' : 'bg-transparent border-black/20',
-    };
+    useEffect(() => {
+        localStorage.setItem("checkout_address_details", JSON.stringify({ ...addressDetails, address: resolvedAddress }));
+    }, [addressDetails, resolvedAddress]);
 
     const PLATFORM_FEE_PER_ITEM = 29;
 
@@ -154,9 +128,11 @@ export default function CartSummary({
             const yyyy = date.getFullYear();
             const mm = String(date.getMonth() + 1).padStart(2, '0');
             const dd = String(date.getDate()).padStart(2, '0');
+
             return {
                 value: `${yyyy}-${mm}-${dd}`,
-                label: date.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }),
+                label: index === 0 ? "Today" : index === 1 ? "Tomorrow" : date.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric' }),
+                fullDate: date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
             };
         });
     }, []);
@@ -165,297 +141,314 @@ export default function CartSummary({
 
     const handleNext = () => {
         setLocalError("");
+
         if (checkoutStep === 0) {
             if (cartItems.length === 0) return setLocalError("Your cart is empty.");
             if (!isCheckoutAvailable && checkoutMessage) return setLocalError(checkoutMessage);
             setCheckoutStep(1);
-        } else if (checkoutStep === 1) {
+            return;
+        }
+
+        if (checkoutStep === 1) {
             if (!selectedDate || !selectedTime) return setLocalError("Please select both date and time.");
             setCheckoutStep(2);
-        } else if (checkoutStep === 2) {
-            if (!selectedAddress.trim()) return setLocalError("Please enter your complete service address.");
+            return;
+        }
+
+        if (checkoutStep === 2) {
+            if (!resolvedAddress.trim()) return setLocalError("Please enter your complete service address.");
+            if (!addressDetails.pincode.trim()) return setLocalError("Pincode is required.");
             setCheckoutStep(3);
         }
     };
 
     const onSubmit = async () => {
         setLocalError("");
+
         if (cartItems.length === 0) return setLocalError("Your cart is empty.");
-        if (!selectedDate || !selectedTime || !selectedAddress) return setLocalError("Missing booking details.");
-        
-        await onConfirmBooking?.({ date: selectedDate, time: selectedTime, address: selectedAddress.trim() });
+        if (!selectedDate || !selectedTime || !resolvedAddress) return setLocalError("Missing booking details.");
+
+        const fullAddress = `${resolvedAddress}, ${addressDetails.city} - ${addressDetails.pincode}`;
+        await onConfirmBooking?.({ date: selectedDate, time: selectedTime, address: fullAddress });
     };
 
     const openWhatsApp = () => {
         const bookingId = bookingMetadata?.order_id || bookingMetadata?.id || 'N/A';
-        const serviceName = cartItems[0]?.name || bookingMetadata?.cart_items?.[0]?.name || 'Service';
+        const serviceNames = cartItems.map((item) => item.name).join(', ') || bookingMetadata?.cart_items?.[0]?.name || 'Service';
         const date = bookingMetadata?.date || selectedDate;
-        const time = bookingMetadata?.time || selectedTime;
-        
-        const message = `Hi, I'm interested in booking a service. 
-Booking ID: #${bookingId.slice(0, 8).toUpperCase()}
-Service: ${serviceName}
-Date: ${date}
-Time: ${time}`;
-
+        const message = `Hi Houserve, I have a booking!\nBooking ID: #${String(bookingId).slice(0, 8).toUpperCase()}\nServices: ${serviceNames}\nScheduled for: ${date} at ${bookingMetadata?.time || selectedTime}`;
         const url = `https://wa.me/919811797407?text=${encodeURIComponent(message)}`;
-        window.open(url, '_blank');
+
+        window.open(url, '_blank', 'noopener,noreferrer');
     };
 
-    return (
-        <div className={`flex-grow flex flex-col items-center justify-start py-8 px-4 lg:px-24 animate-in fade-in zoom-in-95 duration-500 overflow-visible text-left ${colors.text}`}>
-            <div className={`glass w-full max-w-4xl p-6 sm:p-8 lg:p-14 rounded-[32px] border ${colors.glass} shadow-xl relative overflow-visible text-left`}>
-                
-                {checkoutStep > 0 && !bookingSuccess && (
-                    <div className="mb-10 flex items-center justify-between w-full max-w-md mx-auto">
-                        <div className="flex flex-col items-center gap-2">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${checkoutStep >= 1 ? 'bg-blue-600 text-white' : `border ${theme === 'dark' ? 'border-cardText/30 text-white/30' : 'border-black/20 text-black/30'}`}`}>{checkoutStep > 1 ? '✓' : '1'}</div>
-                            <span className={`text-[9px] uppercase tracking-widest font-bold ${colors.subtext}`}>Schedule</span>
-                        </div>
-                        <div className={`flex-grow h-px mx-2 ${checkoutStep >= 2 ? 'bg-blue-600' : theme === 'dark' ? 'bg-white/10' : 'bg-black/10'}`}></div>
-                        <div className="flex flex-col items-center gap-2">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${checkoutStep >= 2 ? 'bg-blue-600 text-white' : `border ${theme === 'dark' ? 'border-cardText/30 text-white/30' : 'border-black/20 text-black/30'}`}`}>{checkoutStep > 2 ? '✓' : '2'}</div>
-                            <span className={`text-[9px] uppercase tracking-widest font-bold ${colors.subtext}`}>Address</span>
-                        </div>
-                        <div className={`flex-grow h-px mx-2 ${checkoutStep >= 3 ? 'bg-blue-600' : theme === 'dark' ? 'bg-white/10' : 'bg-black/10'}`}></div>
-                        <div className="flex flex-col items-center gap-2">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${checkoutStep >= 3 ? 'bg-blue-600 text-white' : `border ${theme === 'dark' ? 'border-cardText/30 text-white/30' : 'border-black/20 text-black/30'}`}`}>3</div>
-                            <span className={`text-[9px] uppercase tracking-widest font-bold ${colors.subtext}`}>Review</span>
-                        </div>
+    if (bookingSuccess) {
+        return (
+            <div className="flex-grow flex flex-col items-center justify-start py-8 px-4 lg:px-24">
+                <div className={`glass w-full max-w-2xl p-8 lg:p-12 rounded-[40px] border ${colors.glass} ${colors.border} text-center shadow-2xl overflow-hidden relative`}>
+                    <div className="absolute top-0 inset-x-0 h-2 bg-emerald-500" />
+                    <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-6 text-4xl">🎉</div>
+                    <h2 className="text-3xl sm:text-4xl font-black premium-text mb-4">Booking Confirmed!</h2>
+                    <p className={`text-base sm:text-lg mb-2 ${colors.cardText}`}>Your service is scheduled for <span className="text-blue-500 font-bold">{bookingMetadata?.date}</span> at <span className="text-blue-500 font-bold">{bookingMetadata?.time}</span></p>
+                    <p className={`text-xs font-black uppercase tracking-widest ${colors.subtext} mb-10`}>Booking ID: #{String(bookingMetadata?.order_id || 'PENDING').slice(0, 8).toUpperCase()}</p>
+                    
+                    <div className="flex flex-col gap-3">
+                        <button onClick={openWhatsApp} className="w-full py-4 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-[#25D366]/20 theme-button-motion active:scale-95 flex items-center justify-center gap-3">
+                            <span>Message on WhatsApp</span>
+                        </button>
+                        <button onClick={() => { setCheckoutStep(0); setCurrentView('bookings'); }} className={`w-full py-4 rounded-2xl border font-black uppercase tracking-widest active:scale-95 theme-button-motion ${colors.secondaryButton}`}>
+                            View My Bookings
+                        </button>
                     </div>
-                )}
+                </div>
+            </div>
+        );
+    }
 
-                <div className="mb-8 flex items-center gap-4">
-                    {checkoutStep > 0 && !bookingSuccess && (
-                        <button onClick={() => setCheckoutStep(checkoutStep - 1)} className={`w-10 h-10 rounded-full border flex items-center justify-center ${theme === 'dark' ? 'border-white/10 hover:bg-white/10' : 'border-black/10 hover:bg-black/5'} transition-colors`}>
+    return (
+        <div className={`flex-grow flex flex-col items-center justify-start py-8 px-4 lg:px-24 animate-in fade-in zoom-in-95 duration-500 text-left ${colors.text}`}>
+            <div className={`glass w-full max-w-4xl p-6 sm:p-10 lg:p-14 rounded-[40px] border ${colors.glass} ${colors.border} shadow-2xl relative overflow-visible`}>
+                {checkoutStep > 0 ? (
+                    <div className="mb-10 w-full max-w-xs mx-auto flex items-center justify-between">
+                        {[1, 2, 3].map((step) => (
+                            <div key={step} className="flex flex-col items-center gap-2 flex-1 relative">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-xs z-10 ${checkoutStep >= step ? colors.stepActive : colors.stepInactive}`}>
+                                    {checkoutStep > step ? '✓' : step}
+                                </div>
+                                {step < 3 ? (
+                                    <div className={`absolute left-1/2 top-4 w-full h-[2px] -z-0 ${checkoutStep > step ? colors.stepLineActive : colors.stepLineInactive}`} />
+                                ) : null}
+                            </div>
+                        ))}
+                    </div>
+                ) : null}
+
+                <div className="mb-10 flex items-center gap-5">
+                    {checkoutStep > 0 ? (
+                        <button onClick={() => setCheckoutStep(checkoutStep - 1)} className={`w-12 h-12 rounded-2xl border flex items-center justify-center active:scale-90 theme-button-motion ${colors.secondaryButton}`}>
                             ←
                         </button>
-                    )}
+                    ) : null}
                     <div>
-                        <span className={`text-[11px] uppercase tracking-[0.4em] font-black ${colors.subtext} block mb-2`}>
-                            {checkoutStep === 0 ? 'Your Cart' : checkoutStep === 1 ? 'Step 1 of 3' : checkoutStep === 2 ? 'Step 2 of 3' : 'Step 3 of 3'}
+                        <span className={`text-[10px] uppercase tracking-[0.4em] font-black ${colors.subtext} block mb-1`}>
+                            {checkoutStep === 0 ? 'Checkout' : `Step ${checkoutStep} of 3`}
                         </span>
-                        <h2 className={`text-3xl lg:text-5xl font-black premium-text tracking-tighter leading-tight ${theme === 'dark' ? '' : 'text-[#1d1d1f]'}`}>
-                            {checkoutStep === 0 ? 'Order Summary' : checkoutStep === 1 ? 'Pick a Time' : checkoutStep === 2 ? 'Service Address' : 'Final Review'}
+                        <h2 className="text-4xl lg:text-5xl font-black premium-text tracking-tighter leading-tight">
+                            {checkoutStep === 0 ? 'Order Summary' : checkoutStep === 1 ? 'Pick a Slot' : checkoutStep === 2 ? 'Address' : 'Confirm'}
                         </h2>
                     </div>
                 </div>
 
-                {!!checkoutMessage && checkoutStep === 0 && (
-                    <p className={`mb-6 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm ${theme === 'dark' ? 'text-amber-200' : 'text-amber-800'}`}>
-                        {checkoutMessage}
-                    </p>
-                )}
-
-                {bookingSuccess && (
-                    <div className={`mb-8 p-8 text-center rounded-3xl border border-emerald-500/40 bg-emerald-500/10 ${theme === 'dark' ? 'text-emerald-200' : 'text-emerald-800'}`}>
-                        <div className="text-5xl mb-4">🎉</div>
-                        <h3 className="text-2xl font-bold mb-2">Booking Confirmed!</h3>
-                        <p className="mb-2">Your service is scheduled for <strong>{bookingMetadata?.date}</strong> at <strong>{bookingMetadata?.time}</strong>.</p>
-                        <p className="text-xs opacity-70 mb-6">Booking ID: #{String(bookingMetadata?.order_id || 'PENDING').slice(0,8).toUpperCase()}</p>
-                        
-                        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                            <button onClick={openWhatsApp} className="w-full sm:w-auto px-6 py-3 bg-[#25D366] text-white rounded-xl font-bold hover:bg-[#128C7E] transition-colors flex items-center justify-center gap-2">
-                                <span>WhatsApp Support</span>
-                            </button>
-                            <button onClick={() => { setCheckoutStep(0); setCurrentView('bookings'); }} className="w-full sm:w-auto px-6 py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-500 transition-colors">
-                                View History
-                            </button>
+                {checkoutStep === 0 ? (
+                    <div className="space-y-6">
+                        <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-3">
+                                <h3 className={`text-xl font-black ${colors.text}`}>Your cart</h3>
+                                {cartItems.length > 0 ? (
+                                    <span className="px-3 py-0.5 bg-blue-600 text-white text-[10px] font-black rounded-full">
+                                        {cartItems.length}
+                                    </span>
+                                ) : null}
+                            </div>
+                            {cartItems.length > 0 && typeof onClearAll === "function" ? (
+                                <button onClick={onClearAll} className={`px-4 py-2 rounded-xl border text-[10px] uppercase font-black tracking-widest theme-button-motion ${colors.secondaryButton}`}>
+                                    Clear all
+                                </button>
+                            ) : null}
                         </div>
-                    </div>
-                )}
 
-                {!bookingSuccess && checkoutStep === 0 && (
-                    <>
-                        <div className="space-y-4 max-h-[400px] overflow-y-auto custom-scroll pr-2">
+                        <div className="space-y-3">
                             {cartItems.length === 0 ? (
-                                <div className="py-14 text-center opacity-60 flex flex-col items-center gap-4">
-                                    <span className="text-4xl">🛒</span>
-                                    <h3 className="text-lg font-black uppercase tracking-widest">Cart is empty</h3>
-                                    <p className="text-xs opacity-50 mb-4">Add some services to get started</p>
-                                    <button onClick={() => {
-                                        if (window.location.pathname === '/' || window.location.pathname.includes('Dashboard')) {
-                                            setCurrentView('home');
-                                        } else {
-                                            window.location.href = '/';
-                                        }
-                                    }} className="px-8 py-3 rounded-full border border-current text-[10px] font-black uppercase tracking-widest hover:bg-current transition-all">Explore Services</button>
-                                </div>
+                                <div className={`py-20 text-center ${colors.subtext}`}>Your cart is empty</div>
                             ) : (
-                                <>
-                                    <div className="flex items-center justify-between mb-4">
-                                        <p className={`text-xs font-bold uppercase tracking-widest ${colors.subtext}`}>{cartItems.length} items in cart</p>
-                                        <button onClick={onClearAll} className="text-[10px] uppercase font-bold text-red-500 hover:underline">Clear all</button>
-                                    </div>
-                                    {cartItems.map((item) => (
-                                    <div key={item.service_id} className={`flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-[20px] border ${theme === 'dark' ? 'bg-white/[0.03] border-white/5' : 'bg-black/[0.02] border-black/5'} shadow-sm`}>
-                                        <div className="w-16 h-16 rounded-xl overflow-hidden bg-black shrink-0">
+                                cartItems.map((item) => (
+                                    <div key={item.service_id} className={`p-4 rounded-3xl border flex items-center gap-4 ${colors.panel} ${colors.softBorder}`}>
+                                        <div className={`w-14 h-14 rounded-2xl overflow-hidden shrink-0 flex items-center justify-center text-xl ${theme === 'dark' ? 'bg-black' : 'bg-blue-50'}`}>
                                             <img src={item.img} className="w-full h-full object-cover" alt={item.name} />
                                         </div>
                                         <div className="flex-grow">
-                                            <h4 className={`text-lg font-bold ${colors.text}`}>{item.name}</h4>
-                                            <p className={`text-sm ${colors.subtext}`}>{formatCurrency(item.price)}</p>
+                                            <h4 className={`font-black text-[15px] leading-tight ${colors.text}`}>{item.name}</h4>
+                                            <p className={`text-[11px] font-bold ${colors.subtext}`}>₹{item.price} + ₹{PLATFORM_FEE_PER_ITEM} fee</p>
                                         </div>
-                                        <div className="flex items-center gap-3">
-                                            <button onClick={() => updateQuantity?.(item.service_id, -1)} className={`w-8 h-8 rounded-full border ${theme === 'dark' ? 'border-white/20 text-white hover:bg-white/10' : 'border-black/20 text-black hover:bg-black/5'} flex items-center justify-center`}>−</button>
-                                            <span className="min-w-[1.5rem] text-center font-bold">{item.quantity}</span>
-                                            <button onClick={() => updateQuantity?.(item.service_id, 1)} className={`w-8 h-8 rounded-full border ${theme === 'dark' ? 'border-white/20 text-white hover:bg-white/10' : 'border-black/20 text-black hover:bg-black/5'} flex items-center justify-center`}>+</button>
-                                        </div>
-                                        <div className="text-right sm:min-w-[100px]">
-                                            <div className="font-black text-lg">{formatCurrency(item.price)}</div>
-                                            <div className={`text-[10px] ${colors.subtext}`}>+ {formatCurrency(PLATFORM_FEE_PER_ITEM)} fee</div>
-                                            <button onClick={() => removeFromCart(item.service_id)} className="text-xs text-red-500 hover:text-red-400 font-bold mt-1">Remove</button>
-                                        </div>
+                                        <button onClick={() => removeFromCart(item.service_id)} className={`w-10 h-10 rounded-xl border flex items-center justify-center theme-button-motion ${colors.secondaryButton}`}>
+                                            ✕
+                                        </button>
                                     </div>
-                                    ))}
-                                </>
+                                ))
                             )}
                         </div>
-                        {cartItems.length > 0 && (
-                            <div className={`mt-8 pt-6 border-t ${theme === 'dark' ? 'border-white/10' : 'border-black/10'} flex items-center justify-between`}>
-                                <div>
-                                    <p className={`text-sm ${colors.subtext}`}>Total Amount</p>
-                                    <h4 className={`text-3xl font-black ${colors.text}`}>{formatCurrency(totalPrice)}</h4>
+
+                        {cartItems.length > 0 ? (
+                            <div className="mt-8 space-y-4">
+                                <div className="space-y-4 px-2">
+                                    <div className="flex justify-between items-center text-sm">
+                                        <span className={`font-bold uppercase tracking-widest text-[10px] ${colors.subtext}`}>Services</span>
+                                        <span className={`font-black ${colors.text}`}>{formatCurrency(subtotal)}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-sm">
+                                        <span className={`font-bold uppercase tracking-widest text-[10px] ${colors.subtext}`}>Platform fee</span>
+                                        <span className={`font-black ${colors.text}`}>{formatCurrency(platformFees)}</span>
+                                    </div>
+                                    <div className={`h-px w-full ${theme === 'dark' ? 'bg-white/5' : 'bg-black/5'} my-2`} />
+                                    <div className="flex justify-between items-end">
+                                        <span className="font-black text-xl tracking-tighter">Total</span>
+                                        <span className={`text-3xl font-black ${colors.text}`}>{formatCurrency(totalPrice)}</span>
+                                    </div>
                                 </div>
-                                <button onClick={handleNext} className="px-8 py-4 rounded-full bg-blue-600 hover:bg-blue-500 transition-colors text-white font-bold tracking-wide shadow-lg shadow-blue-500/20 active:scale-95">
-                                    Proceed to Checkout →
+                                
+                                <button onClick={handleNext} className={`w-full py-5 rounded-[24px] font-black uppercase tracking-widest active:scale-[0.98] mt-4 theme-button-motion ${colors.primaryButton}`}>
+                                    Proceed to checkout
                                 </button>
                             </div>
-                        )}
-                        {localError && <p className="text-sm text-red-500 mt-4 text-right">{localError}</p>}
-                    </>
-                )}
+                        ) : null}
+                        {localError ? <p className="text-center text-sm text-red-500 font-bold">{localError}</p> : null}
+                    </div>
+                ) : null}
 
-                {!bookingSuccess && checkoutStep === 1 && (
-                    <div className="space-y-6">
+                {checkoutStep === 1 ? (
+                    <div className="space-y-10">
                         <div>
-                            <label className={`block text-sm font-bold mb-3 ${colors.text}`}>Select Date</label>
-                            <div className="flex flex-wrap gap-3">
-                                {dateOptions.map((option) => (
+                            <label className={`block text-[11px] uppercase tracking-[0.2em] font-black mb-4 ${colors.subtext}`}>Availability</label>
+                            <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
+                                {dateOptions.map((opt) => (
                                     <button
-                                        key={option.value}
-                                        type="button"
-                                        onClick={() => { setSelectedDate(option.value); setSelectedTime(""); }}
-                                        className={`rounded-xl border px-5 py-3 text-sm font-bold transition-all ${selectedDate === option.value ? 'border-blue-500 bg-blue-500/10 text-blue-500 shadow-[0_0_15px_rgba(37,99,235,0.2)]' : theme === 'dark' ? 'border-white/10 hover:bg-white/5 text-white/50' : 'border-black/10 hover:bg-black/5 text-black/60'}`}
+                                        key={opt.value}
+                                        onClick={() => { setSelectedDate(opt.value); setSelectedTime(""); }}
+                                        className={`shrink-0 px-6 py-4 rounded-3xl border flex flex-col items-center gap-1 theme-button-motion ${selectedDate === opt.value ? `${colors.activeChip} scale-105` : colors.inactiveChip}`}
                                     >
-                                        {option.label}
+                                        <span className="text-[10px] font-black uppercase tracking-widest">{opt.label}</span>
+                                        <span className="text-lg font-black">{opt.fullDate}</span>
                                     </button>
                                 ))}
                             </div>
                         </div>
 
-                        {selectedDate && (
+                        {selectedDate ? (
                             <div className="animate-in fade-in slide-in-from-top-4">
-                                <label className={`block text-sm font-bold mb-3 ${colors.text}`}>Select Time Slot</label>
+                                <label className={`block text-[11px] uppercase tracking-[0.2em] font-black mb-4 ${colors.subtext}`}>Preferred Time</label>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                                     {timeSlots.map((slot) => (
                                         <button
                                             key={slot.value}
-                                            type="button"
                                             disabled={slot.isFull}
                                             onClick={() => setSelectedTime(slot.value)}
-                                            className={`rounded-xl border px-4 py-3 text-sm font-bold transition-all relative ${slot.isFull ? 'opacity-40 cursor-not-allowed bg-black/10' : selectedTime === slot.value ? 'border-blue-500 bg-blue-500/10 text-blue-500 shadow-[0_0_15px_rgba(37,99,235,0.2)]' : theme === 'dark' ? 'border-white/10 hover:bg-white/5 text-white/50' : 'border-black/10 hover:bg-black/5 text-black/60'}`}
+                                            className={`py-4 rounded-2xl border text-sm font-black theme-button-motion ${slot.isFull ? 'opacity-20 cursor-not-allowed grayscale' : selectedTime === slot.value ? colors.activeChip : colors.inactiveChip}`}
                                         >
                                             {slot.label}
-                                            {slot.isFull && <span className="absolute -top-2 -right-1 bg-red-500 text-white text-[8px] px-1.5 py-0.5 rounded-full uppercase">Full</span>}
                                         </button>
                                     ))}
                                 </div>
-                                {timeSlots.length === 0 && <p className="text-sm text-amber-500">No time slots available for this date.</p>}
                             </div>
-                        )}
+                        ) : null}
 
-                        {localError && <p className="text-sm text-red-500">{localError}</p>}
-
-                        <div className={`mt-8 pt-6 border-t ${theme === 'dark' ? 'border-white/10' : 'border-black/10'} flex justify-end`}>
-                            <button onClick={handleNext} className="px-8 py-4 rounded-full bg-blue-600 hover:bg-blue-500 transition-colors text-white font-bold tracking-wide shadow-lg shadow-blue-500/20 active:scale-95">
-                                Next: Address →
+                        <div className="pt-6 border-t border-white/5">
+                            <button onClick={handleNext} disabled={!selectedDate || !selectedTime} className={`w-full py-5 rounded-3xl font-black uppercase tracking-widest theme-button-motion ${selectedDate && selectedTime ? colors.primaryButton : colors.disabledButton}`}>
+                                Continue to Address
                             </button>
+                            {localError ? <p className="text-center text-sm text-red-500 font-bold mt-4">{localError}</p> : null}
                         </div>
                     </div>
-                )}
+                ) : null}
 
-                {!bookingSuccess && checkoutStep === 2 && (
-                    <div className="space-y-6">
-                        <div>
-                            <div className="flex items-center justify-between mb-3">
-                                <label className={`block text-sm font-bold ${colors.text}`}>Service Address</label>
-                                <button 
-                                    type="button"
-                                    onClick={handleAutoDetect}
-                                    disabled={isLocating}
-                                    className={`text-[10px] uppercase font-black tracking-widest flex items-center gap-2 px-3 py-1.5 rounded-lg border ${theme === 'dark' ? 'border-blue-500/30 bg-blue-500/10 text-blue-400' : 'border-blue-200 bg-blue-50 text-blue-600'} hover:scale-105 transition-all active:scale-95 disabled:opacity-50`}
-                                >
-                                    <span>{isLocating ? 'Locating...' : '📍 Detect My Location'}</span>
-                                </button>
-                            </div>
+                {checkoutStep === 2 ? (
+                    <div className="space-y-8">
+                        <div className="flex items-center justify-between">
+                            <label className={`text-[11px] uppercase tracking-[0.3em] font-black ${colors.subtext}`}>Address Details</label>
+                            <button onClick={handleAutoDetect} className="text-[10px] font-black text-blue-500 uppercase tracking-widest flex items-center gap-2 theme-button-motion">
+                                {isLocating ? "Detecting..." : "📍 Auto-Detect"}
+                            </button>
+                        </div>
+
+                        <div className="space-y-4">
                             <textarea
-                                value={selectedAddress}
-                                onChange={(e) => setSelectedAddress(e.target.value)}
-                                placeholder="Enter your full address (Flat/House No, Building, Area, LandMark...)"
+                                value={resolvedAddress}
+                                onChange={(e) => setAddressDetails((prev) => ({ ...prev, address: e.target.value }))}
+                                placeholder="House No, Building, Street..."
                                 rows={4}
-                                className={`w-full rounded-2xl border ${colors.inputBg} px-5 py-4 text-base resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all shadow-inner ${colors.text} placeholder:${colors.subtext}`}
+                                className={`w-full rounded-3xl p-6 text-base font-medium outline-none border transition-all resize-none ${colors.inputBg} focus:border-blue-500/50`}
                             />
-                            <p className={`mt-2 text-[10px] ${colors.subtext} font-medium`}>Please ensure you add your specific flat number and landmark for the provider.</p>
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className={`px-6 py-4 rounded-[24px] border ${colors.inputSurface} flex flex-col`}>
+                                    <span className={`text-[9px] uppercase font-black tracking-widest mb-1 ${colors.subtext}`}>City</span>
+                                    <input
+                                        type="text"
+                                        value={addressDetails.city}
+                                        onChange={(e) => setAddressDetails((prev) => ({ ...prev, city: e.target.value }))}
+                                        className={`bg-transparent outline-none font-black text-sm ${colors.text}`}
+                                    />
+                                </div>
+                                <div className={`px-6 py-4 rounded-[24px] border ${colors.inputSurface} flex flex-col`}>
+                                    <span className={`text-[9px] uppercase font-black tracking-widest mb-1 ${colors.subtext}`}>Pincode</span>
+                                    <input
+                                        type="text"
+                                        placeholder="1100xx"
+                                        value={addressDetails.pincode}
+                                        onChange={(e) => setAddressDetails((prev) => ({ ...prev, pincode: e.target.value }))}
+                                        className={`bg-transparent outline-none font-black text-sm ${colors.text}`}
+                                    />
+                                </div>
+                            </div>
                         </div>
 
-                        {localError && <p className="text-sm text-red-500">{localError}</p>}
-
-                        <div className={`mt-8 pt-6 border-t ${theme === 'dark' ? 'border-white/10' : 'border-black/10'} flex justify-end`}>
-                            <button onClick={handleNext} className="px-8 py-4 rounded-full bg-blue-600 hover:bg-blue-500 transition-colors text-white font-bold tracking-wide shadow-lg shadow-blue-500/20 active:scale-95">
-                                Next: Payment →
-                            </button>
-                        </div>
+                        <button onClick={handleNext} disabled={!resolvedAddress || !addressDetails.pincode} className={`w-full py-5 rounded-3xl font-black uppercase tracking-widest theme-button-motion ${resolvedAddress && addressDetails.pincode ? colors.primaryButton : colors.disabledButton}`}>
+                            Final Review
+                        </button>
+                        {localError ? <p className="text-center text-sm text-red-500 font-bold mt-2">{localError}</p> : null}
                     </div>
-                )}
+                ) : null}
 
-                {!bookingSuccess && checkoutStep === 3 && (
-                    <div className="space-y-6">
+                {checkoutStep === 3 ? (
+                    <div className="space-y-8">
+                        <div className={`p-8 rounded-[40px] border shadow-inner ${colors.panel} ${colors.softBorder}`}>
+                            <h4 className={`text-[11px] uppercase font-black tracking-[0.3em] mb-6 ${colors.subtext}`}>Order Summary</h4>
+                            <div className="space-y-4">
+                                <div className="flex justify-between items-center">
+                                    <span className={`text-sm font-bold ${colors.subtext}`}>Services</span>
+                                    <span className={`font-black ${colors.text}`}>{cartItems.length} items</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className={`text-sm font-bold ${colors.subtext}`}>Schedule</span>
+                                    <span className={`font-black ${colors.text}`}>{selectedDate} at {selectedTime}</span>
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                    <span className={`text-sm font-bold ${colors.subtext}`}>Address</span>
+                                    <span className={`font-bold text-xs line-clamp-1 ${colors.text}`}>{resolvedAddress}, {addressDetails.city}</span>
+                                </div>
+                                <div className={`h-px w-full ${theme === 'dark' ? 'bg-white/10' : 'bg-black/10'} my-4`} />
+                                <div className="flex justify-between items-end">
+                                    <span className={`font-black text-xl uppercase tracking-tighter ${colors.text}`}>Amount to pay</span>
+                                    <span className="text-5xl font-black text-blue-500">₹{totalPrice}</span>
+                                </div>
+                            </div>
+                        </div>
+
                         <div>
-                            <div className={`p-6 rounded-2xl border ${theme === 'dark' ? 'border-white/10 bg-white/5' : 'border-black/10 bg-black/5'} mb-8 flex items-center justify-between`}>
-                                <div>
-                                    <p className={`text-sm ${colors.subtext}`}>Subtotal</p>
-                                    <p className="text-xl font-bold">{formatCurrency(subtotal)}</p>
-                                    <p className={`text-xs ${colors.subtext} mt-1`}>+ Platform Fees: {formatCurrency(platformFees)}</p>
-                                </div>
-                                <div className="text-right">
-                                    <p className={`text-sm ${colors.subtext}`}>Total Pay</p>
-                                    <p className="text-3xl font-black text-blue-500">{formatCurrency(totalPrice)}</p>
-                                </div>
-                            </div>
-
-                            <div className={`p-6 rounded-2xl border ${theme === 'dark' ? 'border-white/10 bg-white/5' : 'border-black/10 bg-black/5'}`}>
-                                <h4 className={`text-sm font-bold mb-4 ${colors.text}`}>Booking Details</h4>
-                                <div className="space-y-2 text-sm">
-                                    <p className="flex justify-between">
-                                        <span className={colors.subtext}>Date:</span>
-                                        <span className="font-bold">{selectedDate}</span>
-                                    </p>
-                                    <p className="flex justify-between">
-                                        <span className={colors.subtext}>Time:</span>
-                                        <span className="font-bold">{selectedTime}</span>
-                                    </p>
-                                    <p className="flex flex-col gap-1">
-                                        <span className={colors.subtext}>Address:</span>
-                                        <span className="font-medium opacity-80">{selectedAddress}</span>
-                                    </p>
-                                </div>
+                            <label className={`text-[11px] uppercase tracking-[0.3em] font-black mb-4 block ${colors.subtext}`}>Payment Method</label>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                {[
+                                    { id: 'upi', label: 'UPI / QR', icon: '📱' },
+                                    { id: 'card', label: 'Card Payment', icon: '💳' },
+                                    { id: 'pay_on_service', label: 'Pay on arrival', icon: '🏠' },
+                                ].map((option) => (
+                                    <button
+                                        key={option.id}
+                                        onClick={() => setPaymentMethod(option.id)}
+                                        className={`p-4 rounded-[24px] border flex flex-col items-center gap-1 theme-button-motion ${paymentMethod === option.id ? `${colors.activeChip} scale-105` : colors.inactiveChip}`}
+                                    >
+                                        <span className="text-xl mb-1">{option.icon}</span>
+                                        <span className="text-[9px] font-black uppercase tracking-widest">{option.label}</span>
+                                    </button>
+                                ))}
                             </div>
                         </div>
 
-                        {localError && <p className="text-sm text-red-500 text-center">{localError}</p>}
-
-                        <div className={`mt-10 pt-6 border-t ${theme === 'dark' ? 'border-white/10' : 'border-black/10'}`}>
-                            <button
-                                onClick={onSubmit}
-                                disabled={submitting}
-                                className={`w-full px-8 py-5 rounded-2xl bg-blue-600 hover:bg-blue-500 transition-all text-white font-black tracking-widest uppercase shadow-xl shadow-blue-500/30 active:scale-[0.98] disabled:opacity-70 disabled:active:scale-100 flex items-center justify-center gap-2`}
-                            >
-                                {submitting ? 'Processing...' : 'Confirm Booking'}
-                            </button>
-                        </div>
+                        <button onClick={onSubmit} disabled={submitting} className={`w-full py-6 rounded-3xl font-black uppercase tracking-[0.2em] shadow-2xl active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3 theme-button-motion ${submitting ? colors.disabledButton : colors.primaryButton}`}>
+                            {submitting ? 'Confirming...' : 'Place Booking Now'}
+                        </button>
+                        {localError ? <p className="text-center text-sm text-red-500 font-bold mt-2">{localError}</p> : null}
                     </div>
-                )}
+                ) : null}
             </div>
         </div>
     );

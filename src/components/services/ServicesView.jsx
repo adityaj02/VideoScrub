@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../lib/supabase";
+import { SERVICES as SERVICES_DATA } from "../../data/services";
+import { getThemeTokens } from "../../styles/theme";
 
 const FALLBACK_IMAGES = {
   plumbing: "/Assets/plumbing.png",
@@ -13,15 +15,6 @@ const FALLBACK_IMAGES = {
   cleaning: "/Assets/facility.png",
 };
 
-const PLACEHOLDER_BACKGROUNDS = [
-  "linear-gradient(135deg, #0f4c81, #1d8db8)",
-  "linear-gradient(135deg, #5f2c82, #49a09d)",
-  "linear-gradient(135deg, #7b3f00, #d57a1f)",
-  "linear-gradient(135deg, #374151, #111827)",
-  "linear-gradient(135deg, #7f1d1d, #be123c)",
-  "linear-gradient(135deg, #1f2937, #0f766e)",
-];
-
 function formatPrice(value) {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
@@ -30,38 +23,29 @@ function formatPrice(value) {
   }).format(Number(value || 0));
 }
 
-
 function normalizeService(row, index) {
   const serviceName = String(row?.name || "Service");
   const lookup = serviceName.toLowerCase();
-  
-  // Prioritize local fallback assets for a guaranteed premium look
   const image = FALLBACK_IMAGES[lookup] || row.image_url || `/Assets/${lookup.replace(/\s+/g, '-')}.png` || "/Assets/facility.png";
+  const dataMatch = SERVICES_DATA.find((service) => service.title.toLowerCase() === lookup);
 
   return {
     service_id: row.service_id,
     name: serviceName,
-    description:
-      row.description || "Premium doorstep support delivered by verified professionals.",
+    description: row.description || "Premium doorstep support delivered by verified professionals.",
     price: Number(row.price || 0),
     img: image,
     rating: (4.7 + ((index % 4) * 0.1)).toFixed(1),
     prosCount: 18 + index * 3,
     availableToday: index % 5 !== 4,
-    badge: index % 2 === 0 ? "Popular" : "Fast response",
+    badge: index % 3 === 0 ? "Popular" : index % 3 === 1 ? "Fast Response" : "Top Rated",
+    themeColor: dataMatch?.themeColor || '#3b82f6',
+    lightColor: dataMatch?.lightColor || '#dbeafe',
   };
 }
 
 export default function ServicesView({ addToCart, isInCart, setCurrentView, theme }) {
-  const colors = {
-    bg: theme === 'dark' ? 'bg-[#050505]' : 'bg-[#f5f5f7]',
-    text: theme === 'dark' ? 'text-white' : 'text-[#1d1d1f]',
-    subtext: theme === 'dark' ? 'text-white/35' : 'text-[#6e6e73]',
-    cardBg: theme === 'dark' ? 'bg-[#0f0f0f]' : 'bg-[#ffffff]',
-    border: theme === 'dark' ? 'border-white/10' : 'border-black/10',
-    glass: theme === 'dark' ? 'bg-white/[0.03] border-white/10 shadow-[0_30px_80px_rgba(0,0,0,0.45)]' : 'bg-white/90 border-black/5 shadow-md',
-  };
-
+  const colors = getThemeTokens(theme);
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -69,15 +53,10 @@ export default function ServicesView({ addToCart, isInCart, setCurrentView, them
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const [heroIndex, setHeroIndex] = useState(0);
-  const [toast, setToast] = useState("");
 
   const handleBookNow = (service) => {
     addToCart?.(service);
-    if (setCurrentView) {
-      setCurrentView("cart");
-    } else {
-      console.warn("setCurrentView prop is missing in ServicesView");
-    }
+    setCurrentView?.("cart");
   };
 
   async function fetchServices() {
@@ -90,10 +69,7 @@ export default function ServicesView({ addToCart, isInCart, setCurrentView, them
         .select("service_id,name,description,price")
         .order("created_at", { ascending: true });
 
-      if (fetchError) {
-        throw fetchError;
-      }
-
+      if (fetchError) throw fetchError;
       setServices((data || []).map(normalizeService));
     } catch (fetchError) {
       console.error(fetchError);
@@ -125,13 +101,6 @@ export default function ServicesView({ addToCart, isInCart, setCurrentView, them
 
     return () => window.clearInterval(interval);
   }, [services]);
-
-  useEffect(() => {
-    if (!toast) return undefined;
-
-    const timeout = window.setTimeout(() => setToast(""), 4000);
-    return () => window.clearTimeout(timeout);
-  }, [toast]);
 
   const categories = useMemo(() => {
     const uniqueNames = [...new Set(services.map((service) => service.name).filter(Boolean))];
@@ -170,28 +139,51 @@ export default function ServicesView({ addToCart, isInCart, setCurrentView, them
   }
 
   return (
-    <div className={`relative min-h-screen ${colors.bg} px-6 py-12 ${colors.text} lg:px-24 transition-colors duration-500`}>
+    <div className={`relative min-h-screen px-6 py-12 lg:px-24 transition-colors duration-500 ${colors.bg} ${colors.text}`}>
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(52,113,255,0.16),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(255,255,255,0.06),transparent_26%)]" />
 
       <div className="relative mx-auto max-w-7xl">
-        <header className="mb-14 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <h1 className={`text-4xl font-black tracking-[-0.04em] ${colors.text} sm:text-5xl lg:text-8xl premium-text`}>
-              Services
-            </h1>
+        <header className="mb-14 flex flex-col gap-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <h1 className={`text-4xl font-black tracking-[-0.04em] ${colors.text} sm:text-5xl lg:text-8xl premium-text`}>
+                Services
+              </h1>
+              <p className={`mt-3 text-sm font-bold uppercase tracking-widest ${colors.subtext}`}>
+                Premium Selection
+              </p>
+            </div>
+            <div className={`w-full max-w-md rounded-[24px] border px-4 py-3 ${colors.glass} ${colors.border}`}>
+              <input
+                type="text"
+                value={searchText}
+                onChange={(event) => setSearchText(event.target.value)}
+                placeholder="Search by service or requirement"
+                className={`w-full bg-transparent outline-none text-sm ${colors.text} ${theme === "dark" ? "placeholder-white/40" : "placeholder-black/40"}`}
+              />
+            </div>
           </div>
-          <p className={`text-sm ${colors.subtext} font-bold uppercase tracking-widest`}>
-            Premium Selection
-          </p>
+
+          <div className="flex flex-wrap gap-3">
+            {categories.map((category) => (
+              <button
+                key={category}
+                type="button"
+                onClick={() => setActiveCategory(category)}
+                className={`rounded-full border px-4 py-2 text-xs font-black uppercase tracking-widest theme-button-motion ${activeCategory === category ? colors.activeChip : colors.inactiveChip}`}
+              >
+                {category}
+              </button>
+            ))}
+          </div>
         </header>
 
-        {loading && <LoadingState theme={theme} />}
+        {loading ? <LoadingState theme={theme} /> : null}
+        {!loading && error ? <ErrorState onRetry={fetchServices} theme={theme} /> : null}
 
-        {!loading && error && <ErrorState onRetry={fetchServices} theme={theme} />}
-
-        {!loading && !error && (
+        {!loading && !error ? (
           <>
-            {!!featuredServices.length && activeCategory === "All" && !searchQuery && (
+            {!!featuredServices.length && activeCategory === "All" && !searchQuery ? (
               <FeaturedHero
                 featuredServices={featuredServices}
                 heroIndex={heroIndex}
@@ -199,17 +191,16 @@ export default function ServicesView({ addToCart, isInCart, setCurrentView, them
                 onBook={handleBookNow}
                 theme={theme}
               />
-            )}
+            ) : null}
 
             {filteredServices.length === 0 ? (
-               <EmptyState onClear={clearFilters} theme={theme} />
+              <EmptyState onClear={clearFilters} theme={theme} />
             ) : (
               <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {filteredServices.map((service, index) => (
+                {filteredServices.map((service) => (
                   <ServiceCard
                     key={service.service_id}
                     service={service}
-                    index={index}
                     addToCart={addToCart}
                     isInCart={Boolean(isInCart?.(service.service_id))}
                     onBook={() => handleBookNow(service)}
@@ -219,14 +210,8 @@ export default function ServicesView({ addToCart, isInCart, setCurrentView, them
               </section>
             )}
           </>
-        )}
+        ) : null}
       </div>
-
-      {toast && (
-        <div className="fixed bottom-6 right-6 z-[220] rounded-2xl border border-emerald-400/30 bg-[#0d1c14] px-5 py-4 text-sm font-medium text-emerald-200 shadow-[0_24px_60px_rgba(0,0,0,0.45)]">
-          {toast}
-        </div>
-      )}
     </div>
   );
 }
@@ -247,17 +232,19 @@ function LoadingState({ theme }) {
 }
 
 function ErrorState({ onRetry, theme }) {
+  const colors = getThemeTokens(theme);
+
   return (
-    <section className={`flex min-h-[340px] flex-col items-center justify-center rounded-[28px] border ${theme === 'dark' ? 'border-white/10 bg-white/[0.03]' : 'border-black/10 bg-white'} text-center shadow-[0_30px_80px_rgba(0,0,0,0.45)]`}>
-      <div className={`mb-4 flex h-16 w-16 items-center justify-center rounded-full border ${theme === 'dark' ? 'border-white/12 bg-white/[0.04]' : 'border-black/5 bg-black/5'} text-2xl`}>
+    <section className={`flex min-h-[340px] flex-col items-center justify-center rounded-[28px] border text-center shadow-[0_30px_80px_rgba(0,0,0,0.45)] ${colors.panel} ${colors.border}`}>
+      <div className={`mb-4 flex h-16 w-16 items-center justify-center rounded-full border ${colors.badge} text-2xl`}>
         !
       </div>
-      <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Could not load services</h2>
-      <p className={`mt-2 text-sm ${theme === 'dark' ? 'text-white/45' : 'text-black/45'}`}>Could not load services</p>
+      <h2 className={`text-2xl font-bold ${colors.text}`}>Could not load services</h2>
+      <p className={`mt-2 text-sm ${colors.subtext}`}>Please try again in a moment.</p>
       <button
         type="button"
         onClick={onRetry}
-        className="mt-6 rounded-full bg-[#4f7cff] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#6c90ff]"
+        className={`mt-6 rounded-full px-5 py-3 text-sm font-semibold theme-button-motion ${colors.primaryButton}`}
       >
         Try again
       </button>
@@ -266,14 +253,16 @@ function ErrorState({ onRetry, theme }) {
 }
 
 function EmptyState({ onClear, theme }) {
+  const colors = getThemeTokens(theme);
+
   return (
-    <section className={`flex min-h-[280px] flex-col items-center justify-center rounded-[28px] border ${theme === 'dark' ? 'border-white/10 bg-white/[0.03]' : 'border-black/10 bg-white'} text-center`}>
-      <p className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-black'}`}>No matching services found</p>
-      <p className={`mt-2 text-sm ${theme === 'dark' ? 'text-white/45' : 'text-black/45'}`}>Try a different service name or clear the current filters.</p>
+    <section className={`flex min-h-[280px] flex-col items-center justify-center rounded-[28px] border text-center ${colors.panel} ${colors.border}`}>
+      <p className={`text-lg font-semibold ${colors.text}`}>No matching services found</p>
+      <p className={`mt-2 text-sm ${colors.subtext}`}>Try a different service name or clear the current filters.</p>
       <button
         type="button"
         onClick={onClear}
-        className={`mt-6 rounded-full border ${theme === 'dark' ? 'border-white/15 text-white hover:bg-white/[0.05]' : 'border-black/15 text-black hover:bg-black/5'} px-5 py-3 text-sm transition`}
+        className={`mt-6 rounded-full border px-5 py-3 text-sm theme-button-motion ${colors.secondaryButton}`}
       >
         Clear all
       </button>
@@ -282,94 +271,93 @@ function EmptyState({ onClear, theme }) {
 }
 
 function FeaturedHero({ featuredServices, heroIndex, setHeroIndex, onBook, theme }) {
+  const colors = getThemeTokens(theme);
+  const service = featuredServices[heroIndex] || featuredServices[0];
+  if (!service) return null;
+
   return (
-    <section className={`relative mb-10 overflow-hidden rounded-[32px] border ${theme === 'dark' ? 'border-white/10 bg-[#0a0d16]' : 'border-black/5 bg-white'} shadow-[0_40px_120px_rgba(0,0,0,0.55)]`}>
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(79,124,255,0.24),transparent_26%),linear-gradient(120deg,rgba(255,255,255,0.03),transparent_45%)]" />
-
-      <div className="relative min-h-[420px]">
-        {featuredServices.map((service, index) => {
-          const visible = index === heroIndex;
-
-          return (
-            <div
-              key={service.service_id}
-              className={`absolute inset-0 grid transition-opacity duration-700 md:grid-cols-[1.15fr_0.85fr] ${
-                visible ? "opacity-100" : "pointer-events-none opacity-0"
-              }`}
-            >
-              <div className="flex flex-col justify-between p-8 md:p-10 lg:p-12">
-                <div>
-                  <div className="mb-6 flex flex-wrap gap-2">
-                    <span className="rounded-full border border-[#4f7cff]/35 bg-[#4f7cff]/18 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#9bb3ff]">
-                      Featured
-                    </span>
-                    <span className={`rounded-full border ${theme === 'dark' ? 'border-white/10 bg-white/[0.05] text-white/65' : 'border-black/10 bg-black/5 text-black/60'} px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em]`}>
-                      Houserve Premium
-                    </span>
-                  </div>
-
-                   <p className={`mb-3 text-xs uppercase tracking-[0.45em] ${theme === 'dark' ? 'text-white/35' : 'text-black/40'}`}>
-                    Starting from {formatPrice(service.price)}
-                  </p>
-                  <h2 className={`max-w-2xl text-4xl font-black leading-none tracking-[-0.05em] ${theme === 'dark' ? 'text-white' : 'text-black'} sm:text-5xl lg:text-[52px]`}>
-                    {service.name}
-                  </h2>
-                   <p className={`mt-5 max-w-xl text-base leading-7 ${theme === 'dark' ? 'text-white/65' : 'text-black/60'}`}>
-                    {service.description}
-                  </p>
-                </div>
-
-                <div className="mt-8 flex flex-wrap items-center gap-4">
-                  <button
-                    type="button"
-                    onClick={() => onBook(service)}
-                    className="rounded-full bg-[#4f7cff] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#6c90ff]"
-                  >
-                    Book now
-                  </button>
-                   <div className={`text-sm ${theme === 'dark' ? 'text-white/55' : 'text-black/50'}`}>
-                    {service.prosCount}+ professionals available
-                  </div>
-                </div>
-              </div>
-
-              <div className="relative min-h-[240px] overflow-hidden">
-                <img
-                  src={service.img}
-                  alt={service.name}
-                  className="h-full w-full object-cover opacity-85"
-                />
-                <div className={`absolute inset-0 ${theme === 'dark' 
-                  ? 'bg-[linear-gradient(180deg,transparent_10%,rgba(5,5,5,0.18)_55%,rgba(5,5,5,0.88)_100%)] md:bg-[linear-gradient(90deg,transparent_0%,rgba(5,5,5,0.12)_45%,rgba(5,5,5,0.78)_100%)]' 
-                  : 'bg-[linear-gradient(180deg,transparent_10%,rgba(255,255,255,0.18)_55%,rgba(255,255,255,0.88)_100%)] md:bg-[linear-gradient(90deg,transparent_0%,rgba(255,255,255,0.12)_45%,rgba(255,255,255,0.78)_100%)]'
-                }`} />
+    <section className="relative mb-12 overflow-hidden rounded-[40px] shadow-2xl transition-all duration-500">
+      {theme === 'dark' ? (
+        <div className="relative w-full min-h-[400px] flex flex-col md:grid md:grid-cols-2 bg-[#0a0a0b] border border-white/5">
+          <div className="relative h-64 md:h-full overflow-hidden order-1 md:order-2">
+            <img
+              src={service.img}
+              alt={service.name}
+              className="h-full w-full object-cover opacity-60 transition duration-700 group-hover:scale-105"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0b] via-transparent to-transparent md:bg-gradient-to-r md:from-[#0a0a0b] md:via-transparent" />
+          </div>
+          
+          <div className="p-8 lg:p-12 flex flex-col justify-center order-2 md:order-1 relative z-10">
+            <div className="flex gap-2 mb-6">
+              <span className="bg-blue-600 px-3 py-1 rounded-full border border-blue-400/30 text-[9px] font-black uppercase tracking-widest text-white shadow-lg">Featured</span>
+              <span className="bg-white/10 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 text-[9px] font-black uppercase tracking-widest text-white/70">Next-Day Slots</span>
+            </div>
+            
+            <p className="text-white/40 text-[11px] font-black uppercase tracking-[0.4em] mb-2">Starting from {formatPrice(service.price)}</p>
+            <h2 className="text-4xl lg:text-6xl font-black text-white leading-tight mb-6">{service.name}</h2>
+            <p className="text-white/60 text-sm lg:text-base leading-relaxed mb-10 max-w-md font-medium">{service.description}</p>
+            
+            <div className="flex flex-wrap items-center gap-4">
+              <button type="button" onClick={() => onBook(service)} className={`px-8 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest active:scale-95 theme-button-motion ${colors.primaryButton}`}>
+                Book now
+              </button>
+              <div className="text-[11px] font-black text-white/50 uppercase tracking-widest">
+                {service.prosCount}+ Experts Online
               </div>
             </div>
-          );
-        })}
-      </div>
-
-      {featuredServices.length > 1 && (
-        <div className="absolute bottom-6 left-8 z-10 flex gap-2">
-          {featuredServices.map((service, index) => (
+          </div>
+        </div>
+      ) : (
+        <div className="relative w-full min-h-[400px] p-8 lg:p-14 bg-[linear-gradient(135deg,#fff6e8_0%,#eef4ff_100%)] border border-black/10 text-black">
+          <div className="relative z-10 flex flex-col items-start max-w-2xl">
+            <div className="flex gap-2 mb-8">
+              <span className="bg-black/5 text-black text-[9px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full border border-black/10 shadow-sm">Featured</span>
+              <span className="bg-blue-500/10 text-black text-[9px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full border border-blue-500/15">Houserve Premium</span>
+            </div>
+            
+            <p className="text-black/60 text-[12px] font-black uppercase tracking-[0.4em] mb-3">Starting from {formatPrice(service.price)}</p>
+            <h2 className="text-4xl lg:text-7xl font-black text-black leading-tight mb-6">{service.name}</h2>
+            <p className="text-black/75 text-base lg:text-lg leading-relaxed mb-10 max-w-xl font-medium">{service.description}</p>
+            
             <button
-              key={service.service_id}
+              type="button"
+              onClick={() => onBook(service)}
+              className={`px-10 py-4 rounded-2xl text-[12px] font-black uppercase tracking-widest active:scale-95 theme-button-motion ${colors.primaryButton}`}
+            >
+              Book now
+            </button>
+            
+            <p className="mt-8 text-black/60 text-[11px] font-black uppercase tracking-widest">21+ professionals available today</p>
+          </div>
+          
+          <div className="absolute top-1/2 right-12 -translate-y-1/2 hidden lg:block text-[12rem] opacity-10 font-black pointer-events-none select-none">
+            {service.name.slice(0, 1)}
+          </div>
+        </div>
+      )}
+
+      {featuredServices.length > 1 ? (
+        <div className="absolute bottom-6 right-8 z-20 flex gap-2">
+          {featuredServices.map((_, index) => (
+            <button
+              key={index}
               type="button"
               onClick={() => setHeroIndex(index)}
-              className={`h-2 rounded-full transition-all ${
-                index === heroIndex ? "w-10 bg-[#4f7cff]" : "w-6 bg-white/20 hover:bg-white/40"
+              className={`h-1.5 rounded-full transition-all duration-300 ${
+                index === heroIndex ? `w-8 ${theme === "dark" ? "bg-white shadow-sm" : "bg-black shadow-sm"}` : `w-3 ${theme === "dark" ? "bg-white/30 hover:bg-white/50" : "bg-black/20 hover:bg-black/35"}`
               }`}
-              aria-label={`Show ${service.name}`}
             />
           ))}
         </div>
-      )}
+      ) : null}
     </section>
   );
 }
 
-function ServiceCard({ service, index, addToCart, isInCart, onBook, theme }) {
+function ServiceCard({ service, addToCart, isInCart, onBook, theme }) {
   const [added, setAdded] = useState(false);
+  const colors = getThemeTokens(theme);
 
   function handleAddToCart() {
     addToCart?.(service);
@@ -377,63 +365,61 @@ function ServiceCard({ service, index, addToCart, isInCart, onBook, theme }) {
     window.setTimeout(() => setAdded(false), 2000);
   }
 
-  const background = PLACEHOLDER_BACKGROUNDS[index % PLACEHOLDER_BACKGROUNDS.length];
-
   return (
-    <article className={`group flex h-[410px] flex-col overflow-hidden rounded-[28px] border ${theme === 'dark' ? 'border-white/10 bg-[#0f0f0f]' : 'border-black/5 bg-white'} shadow-[0_30px_70px_rgba(0,0,0,0.38)] transition hover:-translate-y-1 hover:border-blue-500/30`}>
-      <div className="relative h-[200px] overflow-hidden">
+    <article className={`group flex h-[410px] flex-col overflow-hidden rounded-[28px] border hover:border-blue-500/30 theme-card-motion ${theme === 'dark' ? 'border-white/10 bg-[#0f0f0f]' : 'border-black/5 bg-white shadow-lg'}`} style={theme === 'dark' ? { backgroundColor: `${service.themeColor}10`, borderColor: `${service.themeColor}20` } : {}}>
+      <div className="relative h-[200px] overflow-hidden" style={{ backgroundColor: theme === 'dark' ? `${service.themeColor}20` : service.lightColor }}>
         {service.img ? (
           <img
             src={service.img}
             alt={service.name}
-            className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]"
+            className="h-full w-full object-contain p-6 transition duration-500 group-hover:scale-[1.1]"
           />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center" style={{ background }}>
-            <span className="text-6xl font-black uppercase text-white/25">
-              {service.name.slice(0, 1)}
+        ) : null}
+
+        <div className="absolute top-3 left-3 flex flex-col gap-1.5">
+          <div className="bg-black/50 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
+            <span className="text-white text-[9px] font-black uppercase tracking-widest">{service.badge}</span>
+          </div>
+          <div className="bg-blue-600/90 backdrop-blur-md px-3 py-1 rounded-full border border-blue-400/30">
+            <span className="text-white text-[9px] font-black uppercase tracking-widest">
+              {service.availableToday ? "Available" : "Tomorrow"}
             </span>
           </div>
-        )}
-
-        <div className="absolute left-3 top-3 flex gap-2">
-          <span className="rounded-full border border-white/10 bg-black/50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white">
-            {service.badge}
-          </span>
         </div>
 
-        <div className="absolute right-3 top-3 rounded-full border border-white/10 bg-black/55 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white">
-          {service.prosCount} Pros
-        </div>
-
-        <div className="absolute bottom-3 left-3 rounded-full border border-white/10 bg-black/55 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white">
-          {service.availableToday ? "Available today" : "Next-day slots"}
+        <div className="absolute top-3 right-3 bg-black/50 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
+          <span className="text-white text-[9px] font-black uppercase tracking-widest">{service.prosCount} Pros</span>
         </div>
       </div>
 
       <div className="flex flex-1 flex-col p-5">
         <div className="mb-2 flex items-start justify-between gap-3">
-          <h3 className={`line-clamp-1 text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-black'}`}>{service.name}</h3>
-          <div className="shrink-0 text-sm font-semibold text-amber-300">{service.rating}</div>
+          <h3 className={`line-clamp-1 text-lg font-black ${colors.text}`}>{service.name}</h3>
+          <div className="shrink-0 flex items-center gap-1 bg-amber-400/10 px-2 py-0.5 rounded-lg border border-amber-400/20">
+            <span className="text-[10px] font-black text-amber-500">{service.rating}</span>
+            <span className="text-amber-500 text-[8px]">★</span>
+          </div>
         </div>
 
-         <div className={`mb-2 text-sm font-medium ${theme === 'dark' ? 'text-white/60' : 'text-black/50'}`}>{formatPrice(service.price)}</div>
-        <p className={`line-clamp-1 text-sm leading-6 ${theme === 'dark' ? 'text-white/48' : 'text-black/45'}`}>{service.description}</p>
+        <div className={`mb-2 text-xs font-black p-1.5 rounded-lg w-fit ${theme === 'dark' ? 'bg-white/5 text-white/60' : 'bg-black/5 text-black/60'}`}>
+          Starting from {formatPrice(service.price)}
+        </div>
+        <p className={`line-clamp-2 text-xs leading-relaxed font-medium ${colors.subtext}`}>{service.description}</p>
 
         <div className="mt-auto flex gap-3 pt-5">
           <button
             type="button"
-            onClick={handleAddToCart}
-            className={`flex-1 rounded-2xl border ${theme === 'dark' ? 'border-white/15 text-white hover:bg-white/[0.05]' : 'border-black/15 text-black hover:bg-black/5'} px-4 py-3 text-sm font-semibold transition`}
+            onClick={(event) => { event.stopPropagation(); handleAddToCart(); }}
+            className={`flex-1 rounded-xl border py-3 text-[10px] font-black uppercase tracking-widest active:scale-95 theme-button-motion ${colors.secondaryButton}`}
           >
-            {added ? "Added" : isInCart ? "In cart" : "Add to cart"}
+            {added ? "Added" : isInCart ? "In cart" : "+ Cart"}
           </button>
           <button
             type="button"
-            onClick={onBook}
-            className="flex-1 rounded-2xl bg-[#4f7cff] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#6c90ff]"
+            onClick={(event) => { event.stopPropagation(); onBook(); }}
+            className={`flex-1 rounded-xl py-3 text-[10px] font-black uppercase tracking-widest active:scale-95 theme-button-motion ${colors.primaryButton}`}
           >
-            Book now
+            Book Now
           </button>
         </div>
       </div>

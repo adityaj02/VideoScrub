@@ -4,6 +4,7 @@ import { getUserProfile } from "../lib/profile";
 
 import Sidebar from "../components/layout/Sidebar";
 import Navbar from "../components/layout/Navbar";
+import MobileBottomNav from "../components/layout/MobileBottomNav";
 import SearchBar from "../components/layout/SearchBar";
 import ReviewModal from "../components/layout/ReviewModal";
 
@@ -18,6 +19,7 @@ import CartSummary from "../components/cart/CartSummary";
 import useLocation from "../hooks/useLocation";
 import ProfileModal from "../components/profile/ProfileModal";
 import { SERVICES as FALLBACK_SERVICES } from "../data/services";
+import { DASHBOARD_FILTERS, getThemeTokens, normalizeDashboardFilter, resolveThemeMode } from "../styles/theme";
 
 import { BLOG_POSTS } from "../data/blogPosts";
 import { TESTIMONIALS } from "../data/testimonials";
@@ -46,11 +48,20 @@ const formatPhoneForDisplay = (value = "") => {
   return `+${clean}`;
 };
 
+const hasResolvedLocation = (value = "") =>
+  Boolean(
+    value &&
+    value !== "Detecting..." &&
+    value !== "Location unavailable" &&
+    value !== "Unable to detect location" &&
+    !String(value).toLowerCase().includes("denied")
+  );
+
 export default function Dashboard() {
   const [theme, setTheme] = useState(() => localStorage.getItem("dashboard_theme") || "dark");
   const [activeIdx, setActiveIdx] = useState(0);
-  const { location: detectedLocation, isLoading: isLocating, refreshLocation } = useLocation();
-  const [location, setLocation] = useState("Detecting...");
+  const { location: detectedLocation, isLoading: isLocating, refreshLocation } = useLocation({ autoStart: false });
+  const [location, setLocation] = useState("");
   const [services, setServices] = useState([]);
   const [servicesLoading, setServicesLoading] = useState(true);
   const [servicesError, setServicesError] = useState("");
@@ -158,34 +169,12 @@ export default function Dashboard() {
     price: Number(row.price || 0),
     rating: row.rating || "4.8",
     img: SERVICE_IMAGES[row.title.toLowerCase()] || row.img || "/Assets/facility.png",
+    themeColor: row.themeColor || '#3b82f6',
+    lightColor: row.lightColor || '#dbeafe',
     subServices:
       row.subServices ||
       ["Verified technician visit", "Transparent pricing", "Quality checks"],
   });
-
-  const updateProfileLocation = useCallback(async (resolvedLocation) => {
-    const { data } = await supabase.auth.getUser();
-    const user = data?.user;
-    if (!user) return;
-
-    const { error } = await supabase.from("profiles").upsert(
-      {
-        user_id: user.id,
-        email: user.email,
-        location: resolvedLocation,
-      },
-      { onConflict: "user_id" }
-    );
-
-    if (!error) {
-      setProfile((prev) => ({
-        ...(prev || {}),
-        userId: user.id,
-        email: user.email,
-        location: resolvedLocation,
-      }));
-    }
-  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -218,7 +207,7 @@ export default function Dashboard() {
     setServicesLoading(true);
     fetchServices();
 
-    // ── Real-time: re-fetch whenever any row in `services` changes (price, name, etc.)
+    //  Real-time: re-fetch whenever any row in `services` changes (price, name, etc.)
     const channel = supabase
       .channel("services-realtime")
       .on(
@@ -278,21 +267,21 @@ export default function Dashboard() {
               slug: row.slug || `post-${row.id ?? idx + 1}`,
               view: row.slug ? `post-${row.slug}` : `post-${row.id ?? idx + 1}`,
               img: BLOG_IMAGE_MAP[row.slug] || row.cover_image || "/Assets/services.png",
-              excerpt: row.excerpt || "Read our latest service insights from Boys@Work.",
+              excerpt: row.excerpt || "Read our latest service insights from Houserve.",
               content: row.content || "",
               author: "Houserve Team",
               role: "Support Expert",
-              emoji: row.category?.toLowerCase().includes('cleaning') ? '🧹' :
-                row.category?.toLowerCase().includes('plumbing') ? '💧' :
-                  row.category?.toLowerCase().includes('ac') ? '❄️' :
-                    row.category?.toLowerCase().includes('maintenance') ? '🌧️' : '💡'
+              emoji: row.category?.toLowerCase().includes('cleaning') ? '' :
+                row.category?.toLowerCase().includes('plumbing') ? '' :
+                  row.category?.toLowerCase().includes('ac') ? '' :
+                    row.category?.toLowerCase().includes('maintenance') ? '' : ''
             }))
           );
         } else if (error) {
           console.error("Blog fetch error:", error);
           setBlogError("Live blog feed is unavailable. Showing saved articles.");
         }
-      } catch (err) {
+      } catch {
         if (!isMounted) return;
         setBlogError("Live blog feed is unavailable. Showing saved articles.");
       }
@@ -307,13 +296,10 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    if (detectedLocation) {
+    if (hasResolvedLocation(detectedLocation)) {
       setLocation(detectedLocation);
-      if (detectedLocation !== "Detecting..." && detectedLocation !== "Location unavailable" && !detectedLocation.includes("denied")) {
-        updateProfileLocation(detectedLocation);
-      }
     }
-  }, [detectedLocation, updateProfileLocation]);
+  }, [detectedLocation]);
 
   useEffect(() => {
     let isMounted = true;
@@ -346,6 +332,7 @@ export default function Dashboard() {
           location: "",
         }
       );
+      if (profileData?.location) setLocation(profileData.location);
       setProfileLoading(false);
 
       const localName = localStorage.getItem(`profile_name:${user.id}`);
@@ -492,9 +479,13 @@ export default function Dashboard() {
     localStorage.setItem("dashboard_view", currentView);
   }, [currentView]);
 
+
   useEffect(() => {
     localStorage.setItem("dashboard_theme", theme);
-    if (theme === "dark") {
+    const themeMode = resolveThemeMode(theme);
+    document.documentElement.dataset.dashboardTheme = themeMode;
+    document.body.dataset.dashboardTheme = themeMode;
+    if (themeMode === "dark") {
       document.documentElement.classList.add("dark");
     } else {
       document.documentElement.classList.remove("dark");
@@ -563,19 +554,21 @@ export default function Dashboard() {
   };
 
   const resendEmail = async (booking) => {
+    setToast("Sending email request...");
     try {
       const { error } = await supabase.functions.invoke("send-email", {
         body: {
           name: profile?.name || "Customer",
-          email: profile?.email,
+          email: profile?.email || booking.user_email,
           phone: profile?.phone,
           service: booking.service_name,
           location: booking.address || profile?.location,
           date: booking.scheduled_date || "Flexible",
           time: booking.scheduled_time || "Flexible",
           order_id: booking.order_id,
+          type: 'confirmation_resend',
           admin_email: "shivskukreja@gmail.com",
-          to_email: "shivskukreja@gmail.com"
+          to_email: profile?.email || booking.user_email || "shivskukreja@gmail.com"
         },
       });
       if (error) throw error;
@@ -706,6 +699,7 @@ export default function Dashboard() {
     localStorage.removeItem("checkout_date");
     localStorage.removeItem("checkout_time");
     localStorage.removeItem("checkout_address");
+    localStorage.removeItem("checkout_address_details");
     // Success will be handled in CartSummary success screen, 
     // but the realtime listener will pick up the new order in Dashboard.
   };
@@ -745,9 +739,37 @@ export default function Dashboard() {
       .eq("order_id", orderId);
 
     if (error) {
+      setToast("Failed to cancel booking.");
       return;
     }
+    setToast("Booking cancelled successfully.");
   };
+
+  const rebook = (booking) => {
+    const service = services.find(s => (s.name || s.title) === booking.service_name);
+    if (service) {
+      addToCart(service);
+      switchView('cart');
+      setToast(`Added ${booking.service_name} to cart.`);
+    } else {
+      setToast("Service no longer available for direct rebooking.");
+    }
+  };
+
+  const openWhatsApp = (booking) => {
+    const bookingId = booking.order_id || 'N/A';
+    const serviceName = booking.service_name || 'Service';
+    const date = booking.scheduled_date || 'Flexible';
+    
+    const message = `Hi, I'm reaching out regarding my booking. 
+Booking ID: #${bookingId.slice(0, 8).toUpperCase()}
+Service: ${serviceName}
+Date: ${date}`;
+
+    const url = `https://wa.me/919811797407?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
 
 
   const switchView = useCallback((view, options = {}) => {
@@ -767,36 +789,53 @@ export default function Dashboard() {
     !!profile?.location &&
     isValidPhone(profile?.phone) &&
     !profileLoading;
-  const colors = {
-    bg: theme === "dark" ? "bg-[#03060d]" : "bg-[#f5f5f7]",
-    text: theme === "dark" ? "text-white" : "text-[#1d1d1f]",
-    subtext: theme === "dark" ? "text-white/40" : "text-[#6e6e73]",
-    glass:
-      theme === "dark"
-        ? "bg-white/[0.10] border-white/20 shadow-2xl shadow-black/30"
-        : "bg-white/85 border-black/10 shadow-lg",
-    cardText: theme === "dark" ? "text-white/60" : "text-[#1d1d1f]/80",
-  };
+  const themeMode = resolveThemeMode(theme);
+  const colors = getThemeTokens(theme);
+  const normalizedFilter = normalizeDashboardFilter(activeFilter);
 
-  const activePost = blogPosts.find((post) => post.view === currentView);
-
-  const displayedServices = services.filter((s) => {
+  const legacyDisplayedServices = services.filter((s, index) => {
     let match = true;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       match = s.title?.toLowerCase().includes(q) || s.description?.toLowerCase().includes(q);
     }
-    if (activeFilter === "Nearby") {
-      match = match && s.id % 2 === 0;
-    } else if (activeFilter === "Top rated ★") {
+    if (normalizedFilter === "Nearby") {
+      match = match && index % 2 === 0;
+    } else if (normalizedFilter === "Top rated") {
       match = match && Number(s.rating) >= 4.7;
-    } else if (activeFilter === "Available today") {
-      match = match && s.id % 3 !== 0;
-    } else if (activeFilter === "Under ₹500") {
+    } else if (activeFilter === "Top rated ") {
+      match = match && Number(s.rating) >= 4.7;
+    } else if (normalizedFilter === "Available today") {
+      match = match && index % 3 !== 0;
+    } else if (normalizedFilter === "Under 500") {
+      match = match && s.price < 500;
+    } else if (activeFilter === "Under 500") {
       match = match && s.price < 500;
     }
     return match;
   });
+
+  const displayedServices = services.filter((s, index) => {
+    let match = true;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      match = s.title?.toLowerCase().includes(q) || s.description?.toLowerCase().includes(q);
+    }
+
+    if (normalizedFilter === "Nearby") {
+      match = match && index % 2 === 0;
+    } else if (normalizedFilter === "Top rated") {
+      match = match && Number(s.rating) >= 4.7;
+    } else if (normalizedFilter === "Available today") {
+      match = match && index % 3 !== 0;
+    } else if (normalizedFilter === "Under 500") {
+      match = match && Number(s.price) < 500;
+    }
+
+    return match;
+  });
+
+  void legacyDisplayedServices;
 
   return (
     <>
@@ -826,6 +865,9 @@ export default function Dashboard() {
         .custom-scroll::-webkit-scrollbar { width: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,.16); border-radius: 10px; }
         
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
         .animate-in { animation: fadeIn 0.5s ease-out fill-mode-both; }
         .fade-in { opacity: 0; animation: fadeIn 0.5s ease-out forwards; }
         .zoom-in-95 { transform: scale(0.95); animation: zoomIn 0.5s ease-out forwards; }
@@ -849,7 +891,7 @@ export default function Dashboard() {
         }}
       />
 
-      <div className={`relative z-40 h-screen overflow-hidden flex flex-row ${colors.bg}`}>
+      <div data-dashboard-theme={themeMode} className={`relative z-40 h-screen overflow-hidden flex flex-col md:flex-row ${colors.bg}`}>
         <Sidebar
           currentView={currentView}
           setCurrentView={switchView}
@@ -859,7 +901,14 @@ export default function Dashboard() {
           bookingsCount={bookings.filter(b => b.status === 'pending').length}
         />
 
-        <div ref={contentRef} className="flex-1 h-screen overflow-y-auto relative bg-transparent ml-20 lg:ml-64 custom-scroll scroll-smooth overscroll-contain [scroll-behavior:smooth]">
+        <MobileBottomNav
+          currentView={currentView}
+          setCurrentView={switchView}
+          theme={theme}
+          bookingsCount={bookings.filter(b => b.status === 'pending').length}
+        />
+
+        <div ref={contentRef} className="flex-1 h-screen overflow-y-auto relative bg-transparent md:ml-20 lg:ml-64 custom-scroll theme-scrollbar scroll-smooth overscroll-contain [scroll-behavior:smooth] pb-24 md:pb-8">
           <Navbar
             location={formatShortAddress(location)}
             onLogout={handleLogout}
@@ -874,33 +923,143 @@ export default function Dashboard() {
 
           {currentView === "home" && !readingPost && (
             <>
-              <section className="px-6 lg:px-24 pt-8 pb-2">
-                <div className={`glass px-5 py-3 lg:py-3 lg:px-5 rounded-2xl border ${colors.glass} flex items-center justify-between`}>
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-[14px] bg-blue-600 text-white">
-                      {userInitials}
+              {/* Profile Strip - Redesigned for Mobile */}
+              <section className="px-4 lg:px-24 pt-4 lg:pt-8 pb-2">
+                <div className={`glass px-4 py-3 lg:py-3 lg:px-5 rounded-3xl lg:rounded-2xl border ${colors.glass} flex items-center justify-between`}>
+                  <div className="flex items-center gap-3 lg:gap-4">
+                    <div className="relative">
+                        <div className="w-10 h-10 lg:w-11 lg:h-11 rounded-full flex items-center justify-center font-bold text-[14px] bg-blue-600 text-white shadow-lg">
+                        {userInitials}
+                        </div>
+                        <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white dark:border-[#1a1a1a] rounded-full shadow-sm"></span>
                     </div>
                     <div>
-                      <h3 className={`text-[14px] font-semibold tracking-tight ${colors.text}`}>{profile?.name || "Complete your profile"}</h3>
-                      <p className={`text-[12px] mt-0.5 flex items-center gap-1.5 ${colors.subtext}`}>
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-                        {formatShortAddress(profile?.location || location)} · {profile?.phone || "Pending"}
+                      <h3 className={`text-[13px] lg:text-[14px] font-black tracking-tight ${colors.text}`}>{profile?.name || "Aditya Jha"}</h3>
+                      <p className={`text-[10px] lg:text-[12px] mt-0.5 flex items-center gap-1.5 ${colors.subtext} font-bold opacity-70`}>
+                        {formatShortAddress(profile?.location || location)} | {profile?.phone || "8851853122"}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => switchView("services")} className={`px-4 py-2 rounded-xl border border-transparent text-[12px] font-medium transition-colors ${theme === 'dark' ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-black/5 hover:bg-black/10 text-black'}`}>Browse services</button>
+                    <button onClick={() => switchView("services")} className={`px-4 py-2 lg:py-2.5 rounded-xl text-[10px] lg:text-[12px] font-black uppercase tracking-widest theme-button-motion ${colors.secondaryButton}`}>Browse services</button>
                   </div>
                 </div>
-                <div className="mt-8">
+
+                {/* Search Bar Container */}
+                <div className="mt-6 lg:mt-8">
                   <SearchBar
                     searchQuery={searchQuery}
                     setSearchQuery={setSearchQuery}
                     location={formatShortAddress(location)}
+                    setLocation={setLocation}
                     theme={theme}
-                    onLocationClick={() => { }}
+                    isLocating={isLocating}
+                    onLocationClick={refreshLocation}
                   />
                 </div>
+              </section>
+
+              <section className="lg:hidden px-4 mb-6">
+                <div className="flex overflow-x-auto gap-2 no-scrollbar pb-2">
+                  {[
+                    { value: DASHBOARD_FILTERS[0].value, label: "All" },
+                    { value: DASHBOARD_FILTERS[1].value, label: "Nearby" },
+                    { value: DASHBOARD_FILTERS[2].value, label: "Top rated" },
+                    { value: DASHBOARD_FILTERS[3].value, label: "Today only" },
+                    { value: DASHBOARD_FILTERS[4].value, label: "Budget" },
+                  ].map((filter) => {
+                    const isActive = normalizedFilter === filter.value;
+
+                    return (
+                      <button
+                        key={filter.value}
+                        onClick={() => setActiveFilter(filter.value)}
+                        className={`px-5 py-2.5 rounded-2xl border text-[10px] font-black uppercase tracking-widest whitespace-nowrap active:scale-95 theme-button-motion ${isActive ? colors.activeChip : colors.inactiveChip}`}
+                      >
+                        {filter.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+
+              {/* Horizontal Filter Chips (Mobile only) */}
+              <section className="hidden lg:hidden px-4 mb-6">
+                <div className="flex overflow-x-auto gap-2 no-scrollbar pb-2">
+                    {['All', 'Nearby', 'Top rated', 'Today only', 'Budget'].map((label, i) => (
+                        <button
+                            key={i}
+                            onClick={() => setActiveFilter && setActiveFilter(label.split(' ')[0])}
+                            className={`px-5 py-2.5 rounded-2xl border text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap active:scale-95 ${activeFilter?.includes(label.split(' ')[0])
+                                ? 'bg-[#111111] text-white border-white/10 shadow-xl'
+                                : 'bg-white border-black/5 text-black/40 shadow-sm'}`}
+                        >
+                            {label}
+                        </button>
+                    ))}
+                </div>
+              </section>
+
+              {/* Featured Card - Mobile Only */}
+              <section className="lg:hidden px-4 mb-8">
+                {theme === 'dark' ? (
+                  // Dark Mode: Photo-overlay style
+                  <div className="relative w-full h-[200px] rounded-[32px] overflow-hidden group shadow-2xl border border-white/5 bg-[#0a0a0b]">
+                      <img 
+                          src="/Assets/ac-service.png" 
+                          className="absolute inset-0 w-full h-full object-cover scale-110 group-hover:scale-100 transition-transform duration-1000 opacity-40" 
+                          alt="Featured" 
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent z-10" />
+                      
+                      <div className="absolute top-4 left-4 z-20">
+                          <div className="bg-blue-600 px-3 py-1 rounded-full border border-blue-400/30 shadow-lg">
+                              <span className="text-white text-[9px] font-black uppercase tracking-widest">Next-Day Slots</span>
+                          </div>
+                      </div>
+
+                      <div className="absolute top-4 right-4 z-20">
+                          <div className="bg-white/10 backdrop-blur-md px-2 py-1 rounded-lg border border-white/20 flex items-center gap-1">
+                              <span className="text-white text-[11px] font-black">4.7</span>
+                              <span className="text-amber-400 text-[10px]">*</span>
+                          </div>
+                      </div>
+
+                      <div className="absolute bottom-6 left-6 z-20">
+                          <p className="text-white/50 text-[10px] font-black uppercase tracking-[0.2em] mb-1">Featured Service</p>
+                          <h2 className="text-3xl font-black text-white leading-tight mb-4">AC Service</h2>
+                          <div className="flex items-center gap-3">
+                              <button onClick={() => switchView("services")} className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-xl active:scale-95 theme-button-motion ${colors.contrastButton}`}>Add to cart</button>
+                              <button onClick={() => switchView("services")} className={`px-6 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest active:scale-95 theme-button-motion ${colors.secondaryButton}`}>Book now</button>
+                          </div>
+                      </div>
+                      
+                      <div className="absolute bottom-6 right-6 text-4xl font-black opacity-20 z-20 drop-shadow-2xl">AC</div>
+                  </div>
+                ) : (
+                  // Light Mode: Clean blue gradient card
+                  <div className="relative w-full p-8 rounded-[40px] overflow-hidden group shadow-xl bg-gradient-to-br from-[#fff9ef] via-[#f7eddc] to-[#e8dcc7] border border-black/10">
+                      <div className="relative z-20 flex flex-col items-start h-full">
+                          <div className="flex gap-2 mb-6">
+                              <span className="bg-blue-500/10 text-blue-500 text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border border-blue-500/20">Featured</span>
+                              <span className={`px-3 py-1.5 rounded-full border text-[9px] font-black uppercase tracking-widest ${theme === 'dark' ? 'bg-white/10 text-white border-white/10' : 'bg-black/[0.04] text-[#111113] border-black/10'}`}>Houserve Premium</span>
+                          </div>
+                          
+                          <p className="text-black/60 text-[11px] font-black uppercase tracking-[0.3em] mb-2">Starting from Rs 299</p>
+                          <h2 className="text-4xl font-black text-[#111113] leading-tight mb-4">Electrical</h2>
+                          
+                          <p className="text-[#2f2f35] text-[13px] leading-relaxed mb-8 max-w-[80%] font-medium">
+                              Professional electrical services ensuring safety and efficiency. All work compliant with standards.
+                          </p>
+                          
+                          <button onClick={() => switchView("services")} className={`px-8 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl active:scale-95 flex items-center gap-2 theme-button-motion ${colors.primaryButton}`}>
+                              Book now <span className="text-lg leading-none"></span>
+                          </button>
+                          
+                          <p className="mt-6 text-black/55 text-[11px] font-bold">21+ professionals available today</p>
+                      </div>
+                  </div>
+                )}
               </section>
 
               {servicesLoading ? (
@@ -914,7 +1073,7 @@ export default function Dashboard() {
                       </div>
                     </div>
                   )}
-                  <ServiceGrid SERVICES={displayedServices} addToCart={addToCart} isInCart={isInCart} setSelectedService={setSelectedService} theme={theme} onViewSummary={() => switchView("cart")} />
+                  <ServiceGrid SERVICES={displayedServices} addToCart={addToCart} isInCart={isInCart} setSelectedService={setSelectedService} theme={theme} onViewSummary={() => switchView("services")} />
                   <ServiceSlider SERVICES={displayedServices} activeIdx={activeIdx} setActiveIdx={setActiveIdx} addToCart={addToCart} isInCart={isInCart} theme={theme} onViewSummary={() => switchView("cart")} onSeeDetails={setSelectedService} />
                 </>
               )}
@@ -922,10 +1081,10 @@ export default function Dashboard() {
               <section className="px-6 lg:px-24 py-14">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   {[
-                    { icon: "🛡️", title: "Verified Pros", desc: "Background checked service experts." },
-                    { icon: "⚡", title: "Fast Response", desc: "Quick dispatch across Delhi NCR." },
-                    { icon: "💳", title: "Transparent Pricing", desc: "No hidden fees. Clear breakdowns." },
-                    { icon: "📞", title: "Always Available", desc: "Dedicated support for every booking." },
+                    { icon: "OK", title: "Verified Pros", desc: "Background checked service experts." },
+                    { icon: "FAST", title: "Fast Response", desc: "Quick dispatch across Delhi NCR." },
+                    { icon: "Rs", title: "Transparent Pricing", desc: "No hidden fees. Clear breakdowns." },
+                    { icon: "24/7", title: "Always Available", desc: "Dedicated support for every booking." },
                   ].map((item) => (
                     <div key={item.title} className={`glass rounded-[28px] border p-6 ${colors.glass}`}>
                       <div className="text-3xl">{item.icon}</div>
@@ -949,18 +1108,18 @@ export default function Dashboard() {
                     <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-6">
                       {blogPosts.slice(0, 2).map((post, idx) => (
                         <button key={post.id} onClick={() => { setReadingPost(post); switchView('blog'); }} className={`relative glass text-left rounded-[32px] border p-7 ${colors.glass} group flex flex-col`}>
-                          <div className={`relative w-full rounded-[20px] mb-6 flex items-center justify-center overflow-hidden bg-gradient-to-br ${post.cat.toLowerCase().includes('maintenance') ? 'from-purple-900/40 to-blue-900/40' : post.cat.toLowerCase().includes('service') ? 'from-cyan-900/40 to-teal-900/40' : 'from-indigo-900/40 to-slate-900/40'} ${idx === 0 ? 'h-64' : 'h-48'}`}>
-                            <div className={`text-7xl group-hover:scale-110 transition-transform duration-500`}>{post.emoji}</div>
-                            <div className="absolute top-3 right-3 bg-black/60 backdrop-blur text-white text-[10px] font-bold px-3 py-1.5 rounded-full">
+                          <div className={`relative w-full rounded-[20px] mb-6 flex items-center justify-center overflow-hidden ${idx === 0 ? 'h-64' : 'h-48'}`}>
+                            <img src={post.img} className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 opacity-80" alt="" />
+                            <div className={`absolute top-3 right-3 backdrop-blur text-[10px] font-bold px-3 py-1.5 rounded-full border ${colors.badge}`}>
                               {post.readTime}
                             </div>
                           </div>
-                          <p className={`text-[10px] uppercase font-bold text-blue-500 tracking-wider mb-2`}>{post.cat} <span className={colors.subtext}>· {post.date}</span></p>
+                          <p className={`text-[10px] uppercase font-bold text-blue-500 tracking-wider mb-2`}>{post.cat} <span className={colors.subtext}>| {post.date}</span></p>
                           <h3 className={`mt-1 text-2xl font-black premium-text group-hover:text-blue-400 transition-colors line-clamp-2`}>{post.title}</h3>
                           <p className={`mt-3 text-[13px] ${colors.cardText} line-clamp-2`}>{post.excerpt}</p>
                           <div className="mt-auto pt-4 flex items-center justify-between">
                             <p className={`text-[11px] font-bold ${colors.subtext}`}>By Houserve</p>
-                            <span className="text-blue-500 group-hover:translate-x-1 transition-transform">→</span>
+                            <span className="text-blue-500 group-hover:translate-x-1 transition-transform"></span>
                           </div>
                         </button>
                       ))}
@@ -969,31 +1128,31 @@ export default function Dashboard() {
                 )}
               </section>
 
-              <section className="px-6 lg:px-24 py-16">
-                <div className="flex items-center justify-between mb-8">
-                  <h2 className="text-4xl lg:text-6xl font-black premium-text">What Our Customers Say</h2>
-                  <button onClick={() => setShowReviewModal(true)} className="px-5 py-2.5 rounded-xl bg-blue-600/10 text-blue-500 hover:bg-blue-600/20 text-xs font-bold transition-all">Write a review</button>
+              <section className="px-4 lg:px-24 py-10 lg:py-16">
+                <div className="flex items-center justify-between mb-8 px-2">
+                  <h2 className="text-2xl lg:text-6xl font-black premium-text">Reviews</h2>
+                  <button onClick={() => setShowReviewModal(true)} className="px-5 py-2.5 rounded-xl bg-blue-600/10 text-blue-500 hover:bg-blue-600/20 text-xs font-black uppercase tracking-widest transition-all">Write review</button>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {localTestimonials.slice(0, 3).map((item, idx) => (
-                    <div key={item.name} className={`glass rounded-2xl border ${colors.glass} p-6 flex flex-col justify-between ${idx === 0 ? 'border-blue-500 shadow-[0_0_15px_rgba(37,99,235,0.15)]' : ''}`}>
+                <div className="flex lg:grid lg:grid-cols-3 gap-4 lg:gap-6 overflow-x-auto lg:overflow-visible no-scrollbar pb-6 lg:pb-0 -mx-4 px-4 lg:mx-0 lg:px-0">
+                  {localTestimonials.map((item, idx) => (
+                    <div key={item.name} className={`glass min-w-[280px] lg:min-w-0 rounded-[32px] border ${colors.glass} p-6 lg:p-8 flex flex-col justify-between ${idx === 0 ? 'border-blue-500/30' : ''}`}>
                       <div>
-                        <div className="text-4xl text-blue-500 opacity-60 font-serif leading-none mb-2">"</div>
-                        <p className={`text-[13px] italic ${colors.cardText}`}>{item.quote}</p>
+                        <div className="text-3xl text-blue-500 opacity-60 font-serif leading-none mb-3">"</div>
+                        <p className={`text-[13px] lg:text-[14px] italic leading-relaxed ${colors.cardText}`}>{item.quote}</p>
                       </div>
-                      <div className="mt-6 flex items-center justify-between">
+                      <div className="mt-8 flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 font-bold flex items-center justify-center text-xs">
+                          <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-blue-600 text-white font-black flex items-center justify-center text-xs shadow-lg">
                             {item.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
                           </div>
                           <div>
-                            <p className={`text-xs font-bold ${colors.text}`}>{item.name}</p>
-                            <p className={`text-[10px] ${colors.subtext}`}>{item.loc}</p>
+                            <p className={`text-xs lg:text-sm font-black ${colors.text}`}>{item.name}</p>
+                            <p className={`text-[10px] lg:text-[11px] font-bold ${colors.subtext} opacity-60`}>{item.loc}</p>
                           </div>
                         </div>
-                        <div className="text-yellow-400 text-[10px] tracking-widest text-right">
-                          ★★★★★<br />
-                          <span className="text-green-500 font-bold tracking-normal inline-block mt-1 bg-green-500/10 px-2 py-0.5 rounded-full">✓ Verified booking</span>
+                        <div className="text-amber-400 text-[10px] tracking-widest text-right font-black">
+                          <br />
+                          <span className="text-green-500 font-black tracking-normal inline-block mt-1 bg-green-500/10 px-2 py-0.5 rounded-full text-[8px] uppercase">Verified</span>
                         </div>
                       </div>
                     </div>
@@ -1012,13 +1171,13 @@ export default function Dashboard() {
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
                 <h1 className="text-5xl lg:text-7xl font-black premium-text">Our Blog</h1>
                 <div className="relative group">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 text-lg">🔍</span>
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 text-lg"></span>
                   <input
                     type="text"
                     placeholder="Search articles..."
                     value={blogSearch}
                     onChange={(e) => setBlogSearch(e.target.value)}
-                    className="bg-white/5 border border-white/10 rounded-2xl py-3 pl-12 pr-6 text-sm w-full md:w-64 focus:border-blue-500/50 focus:bg-white/10 transition-all outline-none"
+                    className={`rounded-2xl py-3 pl-12 pr-6 text-sm w-full md:w-64 focus:border-blue-500/50 transition-all outline-none border ${colors.inputBg}`}
                   />
                 </div>
               </div>
@@ -1029,7 +1188,7 @@ export default function Dashboard() {
                   <button
                     key={cat}
                     onClick={() => setBlogCategory(cat)}
-                    className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all ${blogCategory === cat ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' : 'bg-white/5 text-white/50 border border-white/10 hover:bg-white/10 hover:text-white'}`}
+                    className={`px-6 py-2.5 rounded-xl text-xs font-bold border theme-button-motion ${blogCategory === cat ? colors.activeChip : colors.inactiveChip}`}
                   >
                     {cat}
                   </button>
@@ -1046,13 +1205,13 @@ export default function Dashboard() {
                   {filteredBlogs.length > 0 && blogCategory === 'All' && !blogSearch && (
                     <div className={`glass rounded-[40px] border ${colors.glass} overflow-hidden group cursor-pointer hover:border-blue-500/30 transition-all shadow-2xl`} onClick={() => setReadingPost(filteredBlogs[0])}>
                       <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.1fr]">
-                        <div className={`bg-emerald-950/40 min-h-[400px] flex items-center justify-center relative overflow-hidden`}>
-                          <div className="text-9xl transition-transform group-hover:scale-110 duration-500 drop-shadow-2xl">{filteredBlogs[0].emoji}</div>
+                        <div className={`relative min-h-[400px] flex items-center justify-center overflow-hidden`}>
+                          <img src={filteredBlogs[0].img} className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 opacity-80" alt="" />
                           <span className="absolute top-6 left-6 bg-blue-600 text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-full shadow-lg">Featured</span>
                           <span className="absolute top-6 right-6 bg-black/40 backdrop-blur-md text-[10px] font-bold px-3 py-1.5 rounded-full">{filteredBlogs[0].readTime}</span>
                         </div>
                         <div className="p-10 lg:p-14 flex flex-col justify-center">
-                          <p className="text-xs uppercase font-black text-blue-500 tracking-[0.2em] mb-4">{filteredBlogs[0].cat} · {filteredBlogs[0].date}</p>
+                          <p className="text-xs uppercase font-black text-blue-500 tracking-[0.2em] mb-4">{filteredBlogs[0].cat}  {filteredBlogs[0].date}</p>
                           <h2 className="text-4xl lg:text-5xl font-black premium-text leading-tight mb-6">{filteredBlogs[0].title}</h2>
                           <p className={`text-base lg:text-lg leading-relaxed mb-10 ${colors.cardText} opacity-70 line-clamp-3`}>{filteredBlogs[0].excerpt}</p>
                           <div className={`flex items-center justify-between mt-auto pt-8 border-t ${theme === 'dark' ? 'border-white/5' : 'border-black/5'}`}>
@@ -1060,7 +1219,7 @@ export default function Dashboard() {
                               <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center font-bold text-xs shadow-lg">{filteredBlogs[0].author[0]}</div>
                               <span className="text-sm font-bold opacity-80">{filteredBlogs[0].author}</span>
                             </div>
-                            <span className="text-xs font-black uppercase tracking-widest text-blue-500 group-hover:translate-x-1 transition-transform inline-flex items-center gap-2">Read article <span>→</span></span>
+                            <span className="text-xs font-black uppercase tracking-widest text-blue-500 group-hover:translate-x-1 transition-transform inline-flex items-center gap-2">Read article <span></span></span>
                           </div>
                         </div>
                       </div>
@@ -1071,8 +1230,8 @@ export default function Dashboard() {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {filteredBlogs.slice((blogCategory === 'All' && !blogSearch) ? 1 : 0, blogVisibleCount + ((blogCategory === 'All' && !blogSearch) ? 1 : 0)).map((post) => (
                       <div key={post.id} onClick={() => setReadingPost(post)} className={`glass rounded-[32px] border ${colors.glass} overflow-hidden group cursor-pointer hover:border-blue-500/30 transition-all flex flex-col`}>
-                        <div className={`h-48 flex items-center justify-center relative bg-gradient-to-br ${post.cat.toLowerCase().includes('maintenance') ? 'from-purple-900/40 to-blue-900/40' : post.cat.toLowerCase().includes('service') ? 'from-cyan-900/40 to-teal-900/40' : 'from-indigo-900/40 to-slate-900/40'}`}>
-                          <div className="text-6xl group-hover:scale-110 transition-transform duration-500">{post.emoji}</div>
+                        <div className={`h-48 relative overflow-hidden flex items-center justify-center`}>
+                          <img src={post.img} className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 opacity-80" alt="" />
                           <span className="absolute top-4 right-4 bg-black/40 backdrop-blur-md text-[10px] font-bold px-3 py-1.5 rounded-full">{post.readTime}</span>
                         </div>
                         <div className="p-7 flex flex-col flex-grow">
@@ -1081,7 +1240,7 @@ export default function Dashboard() {
                           <p className={`text-xs leading-relaxed mb-6 ${colors.cardText} opacity-60 line-clamp-2`}>{post.excerpt}</p>
                           <div className="mt-auto pt-5 border-t border-white/5 flex items-center justify-between">
                             <span className={`text-[10px] font-bold ${colors.subtext}`}>{post.date}</span>
-                            <span className="text-blue-500 group-hover:translate-x-1 transition-transform">→</span>
+                            <span className="text-blue-500 group-hover:translate-x-1 transition-transform"></span>
                           </div>
                         </div>
                       </div>
@@ -1104,7 +1263,7 @@ export default function Dashboard() {
                         className="group flex flex-col items-center gap-3"
                       >
                         <div className="w-12 h-12 rounded-full border border-white/10 bg-white/5 flex items-center justify-center group-hover:bg-blue-600 group-hover:border-blue-600 transition-all duration-300">
-                          <span className="text-xl group-hover:text-white transition-colors">↓</span>
+                          <span className="text-xl group-hover:text-white transition-colors"></span>
                         </div>
                       </button>
                     </div>
@@ -1120,12 +1279,12 @@ export default function Dashboard() {
                 onClick={() => setReadingPost(null)}
                 className={`flex items-center gap-3 text-xs uppercase tracking-widest font-black mb-10 hover:text-blue-500 transition-colors ${colors.text} opacity-70`}
               >
-                <span className="text-xl">←</span> Back to Blog
+                <span className="text-xl"></span> Back to Blog
               </button>
 
               <div className={`glass rounded-[40px] border ${colors.glass} overflow-hidden p-6 lg:p-12 shadow-2xl`}>
-                <div className={`w-full aspect-video rounded-[32px] mb-12 flex items-center justify-center relative bg-gradient-to-br from-emerald-950/60 to-slate-900/60`}>
-                  <div className="text-[140px] drop-shadow-2xl">{readingPost.emoji}</div>
+                <div className={`relative w-full aspect-video rounded-[32px] mb-12 flex items-center justify-center overflow-hidden`}>
+                  <img src={readingPost.img} className="absolute inset-0 w-full h-full object-cover opacity-80" alt="" />
                 </div>
 
                 <div className="max-w-3xl mx-auto">
@@ -1134,15 +1293,15 @@ export default function Dashboard() {
 
                   <div className="flex flex-wrap items-center gap-6 mb-12 py-8 border-y border-white/5">
                     <div className="flex items-center gap-3">
-                      <span className={`text-base`}>📅</span>
+                      <span className={`text-[10px] font-black uppercase ${colors.subtext}`}>CAL</span>
                       <span className={`text-sm font-bold ${colors.subtext}`}>{readingPost.date}</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className={`text-base text-blue-500`}>⏱</span>
+                      <span className={`text-[10px] font-black uppercase text-blue-500`}>TIME</span>
                       <span className={`text-sm font-bold ${colors.subtext}`}>{readingPost.readTime}</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className={`text-base`}>🔥</span>
+                      <span className={`text-[10px] font-black uppercase ${colors.subtext}`}>BY</span>
                       <span className={`text-sm font-bold ${colors.subtext}`}>{readingPost.author}</span>
                     </div>
                   </div>
@@ -1183,22 +1342,34 @@ export default function Dashboard() {
             <section className="px-6 lg:px-24 py-16 lg:py-20 relative z-20">
               <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
                 <h2 className="text-5xl lg:text-7xl font-black premium-text">My Bookings</h2>
-                <div className={`flex ${theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-black/5 border-black/10'} border p-1 rounded-2xl backdrop-blur-md`}>
+                <div className={`flex border p-1 rounded-2xl backdrop-blur-md overflow-x-auto no-scrollbar ${colors.panel}`}>
                   {[
-                    { id: 'cart', label: 'Cart', count: cartItems.length },
-                    { id: 'upcoming', label: 'Upcoming', count: bookings.filter(b => b.status === 'pending').length },
-                    { id: 'completed', label: 'Completed', count: bookings.filter(b => b.status === 'completed').length },
-                    { id: 'cancelled', label: 'Cancelled', count: bookings.filter(b => b.status === 'cancelled').length },
-                  ].map(t => (
-                    <button
-                      key={t.id}
-                      onClick={() => setBookingTab(t.id)}
-                      className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${bookingTab === t.id ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' : `${colors.cardText} opacity-50 hover:opacity-100 hover:bg-white/5 uppercase tracking-widest`}`}
-                    >
-                      {t.label}
-                      {t.count > 0 && <span className={`px-2 py-0.5 rounded-full text-[10px] ${bookingTab === t.id ? 'bg-white/20 text-white' : 'bg-blue-600 text-white'}`}>{t.count}</span>}
-                    </button>
-                  ))}
+                    { id: 'cart', label: 'Cart', icon: 'CRT', count: cartItems.length },
+                    { id: 'upcoming', label: 'Upcoming', icon: 'CAL', count: bookings.filter(b => b.status === 'pending').length },
+                    { id: 'completed', label: 'Completed', icon: 'OK', count: bookings.filter(b => b.status === 'completed').length },
+                    { id: 'cancelled', label: 'Cancelled', icon: 'X', count: bookings.filter(b => b.status === 'cancelled').length },
+                  ].map(t => {
+                    const isActive = bookingTab === t.id;
+                    const activeStyles = colors.activeTab;
+                    const inactiveStyles = `${colors.inactiveTab} uppercase tracking-widest`;
+                    const badgeStyles = isActive ? colors.badge : colors.stepActive;
+                    
+                    return (
+                      <button
+                        key={t.id}
+                        onClick={() => setBookingTab(t.id)}
+                        className={`px-5 py-2.5 rounded-xl text-[10px] sm:text-xs font-black theme-button-motion flex items-center gap-2 whitespace-nowrap ${isActive ? activeStyles : inactiveStyles}`}
+                      >
+                        <span className="text-sm">{t.icon}</span>
+                        {t.label}
+                        {t.count > 0 && (
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${badgeStyles}`}>
+                            {t.count}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -1229,7 +1400,7 @@ export default function Dashboard() {
                       <>
                         {bookings.filter(b => b.status === (bookingTab === 'upcoming' ? 'pending' : bookingTab)).length === 0 ? (
                           <div className="py-20 text-center opacity-50 flex flex-col items-center gap-4">
-                            <span className="text-4xl text-blue-500 opacity-40">📭</span>
+                            <span className="text-4xl text-blue-500 opacity-40"></span>
                             <p className="text-lg font-bold">No {bookingTab} bookings found</p>
                             <button onClick={() => switchView('services')} className="mt-2 px-6 py-2.5 rounded-full bg-blue-600 text-white text-xs font-bold">Explore Services</button>
                           </div>
@@ -1237,7 +1408,6 @@ export default function Dashboard() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {bookings.filter(b => b.status === (bookingTab === 'upcoming' ? 'pending' : bookingTab)).map(booking => {
                               const sName = String(booking.service_name || "").toLowerCase();
-                              // More robust lookup: check for substrings if exact match fails
                               let sImg = SERVICE_IMAGES[sName];
                               if (!sImg) {
                                 const key = Object.keys(SERVICE_IMAGES).find(k => sName.includes(k) || k.includes(sName));
@@ -1245,39 +1415,61 @@ export default function Dashboard() {
                               }
 
                               return (
-                                <div key={booking.order_id} className={`p-6 rounded-2xl border ${theme === 'dark' ? 'bg-white/[0.03] border-white/5' : 'bg-black/[0.02] border-black/5'} group hover:border-blue-500/30 transition-all flex flex-col gap-4`}>
+                                <div key={booking.order_id} className={`p-5 sm:p-6 rounded-3xl border ${theme === 'dark' ? 'bg-white/[0.03] border-white/5' : 'bg-black/[0.02] border-black/5'} group hover:border-blue-500/30 transition-all flex flex-col gap-4 shadow-sm`}>
                                   <div className="flex justify-between items-start">
                                     <div className="flex items-center gap-4">
-                                      <div className={`w-14 h-14 rounded-xl overflow-hidden bg-black shrink-0 border ${theme === 'dark' ? 'border-white/10' : 'border-black/10'}`}>
+                                      <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl overflow-hidden bg-black shrink-0 border ${theme === 'dark' ? 'border-white/10' : 'border-black/10'}`}>
                                         <img src={sImg} className="w-full h-full object-cover" alt={booking.service_name} />
                                       </div>
                                       <div>
-                                        <h4 className={`font-bold text-lg leading-tight ${colors.text}`}>{booking.service_name}</h4>
-                                        <p className={`text-xs mt-1 ${colors.subtext}`}>ID: #{booking.order_id.slice(0, 8).toUpperCase()}</p>
+                                        <h4 className={`font-black text-[15px] sm:text-lg leading-tight ${colors.text}`}>{booking.service_name}</h4>
+                                        <p className={`text-[10px] sm:text-xs mt-1 font-bold ${colors.subtext}`}>ID: #{booking.order_id.slice(0, 8).toUpperCase()}</p>
                                       </div>
                                     </div>
-                                    <span className={`px-3 py-1 rounded-full text-[10px] uppercase font-bold tracking-widest ${booking.status === 'completed' ? 'bg-emerald-500/10 text-emerald-500' :
+                                    <span className={`px-3 py-1 rounded-full text-[8px] sm:text-[10px] uppercase font-black tracking-widest ${booking.status === 'completed' ? 'bg-emerald-500/10 text-emerald-500' :
                                         booking.status === 'cancelled' ? 'bg-red-500/10 text-red-500' :
                                           'bg-blue-500/10 text-blue-500'
                                       }`}>
-                                      {booking.status}
+                                      {booking.status === 'pending' ? 'Upcoming' : booking.status}
                                     </span>
                                   </div>
-                                  <div className="flex items-center gap-6 py-2">
-                                    <div>
-                                      <p className={`text-[10px] uppercase tracking-widest ${colors.subtext} mb-1`}>Date</p>
-                                      <p className={`text-sm font-bold ${colors.text}`}>{booking.scheduled_date || 'Flexible'}</p>
+                                  
+                                  <div className={`p-4 rounded-2xl ${theme === 'dark' ? 'bg-white/5' : 'bg-black/5'} flex justify-between items-center`}>
+                                    <div className="flex items-center gap-3 sm:gap-6">
+                                      <div>
+                                        <p className={`text-[9px] uppercase tracking-widest ${colors.subtext} font-black mb-0.5`}>Date</p>
+                                        <p className={`text-[11px] sm:text-sm font-black ${colors.text}`}>{booking.scheduled_date || 'Flexible'}</p>
+                                      </div>
+                                      <div className={`w-px h-6 ${theme === 'dark' ? 'bg-white/10' : 'bg-black/10'}`} />
+                                      <div>
+                                        <p className={`text-[9px] uppercase tracking-widest ${colors.subtext} font-black mb-0.5`}>Time</p>
+                                        <p className={`text-[11px] sm:text-sm font-black ${colors.text}`}>{booking.scheduled_time || 'Flexible'}</p>
+                                      </div>
                                     </div>
-                                    <div>
-                                      <p className={`text-[10px] uppercase tracking-widest ${colors.subtext} mb-1`}>Time</p>
-                                      <p className={`text-sm font-bold ${colors.text}`}>{booking.scheduled_time || 'Flexible'}</p>
+                                    <div className="text-right">
+                                       <p className={`text-[9px] uppercase tracking-widest ${colors.subtext} font-black mb-0.5`}>Cost</p>
+                                       <p className="text-[11px] sm:text-sm font-black text-blue-500">499</p> 
                                     </div>
                                   </div>
-                                  <div className={`flex gap-2 pt-4 border-t ${theme === 'dark' ? 'border-white/5' : 'border-black/5'} mt-auto`}>
+
+                                  <div className={`grid grid-cols-2 gap-2 pt-2 mt-auto`}>
                                     {booking.status === 'pending' && (
-                                      <button onClick={() => cancelBooking(booking.order_id)} className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-[10px] uppercase font-bold tracking-widest hover:bg-red-500 transition-all shadow-lg shadow-red-500/10">Cancel</button>
+                                      <>
+                                        <button onClick={() => openWhatsApp(booking)} className="flex items-center justify-center gap-2 py-3 rounded-2xl bg-[#25D366]/10 text-[#25D366] text-[9px] uppercase font-black tracking-widest hover:bg-[#25D366]/20 transition-all border border-[#25D366]/20">
+                                           <span>WhatsApp</span>
+                                        </button>
+                                        <button onClick={() => cancelBooking(booking.order_id)} className="py-3 rounded-2xl bg-red-500/10 text-red-500 text-[9px] uppercase font-black tracking-widest hover:bg-red-500/20 transition-all border border-red-500/20">Cancel</button>
+                                      </>
                                     )}
-                                    <button onClick={() => resendEmail(booking)} className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-[10px] uppercase font-bold tracking-widest hover:bg-blue-500 transition-all shadow-lg shadow-blue-500/10">Resend Email</button>
+                                    {booking.status === 'completed' && (
+                                       <>
+                                         <button onClick={() => rebook(booking)} className="flex items-center justify-center gap-2 py-3 rounded-2xl bg-blue-600 text-white text-[9px] uppercase font-black tracking-widest shadow-lg shadow-blue-500/20 active:scale-95 transition-all">Rebook</button>
+                                         <button onClick={() => resendEmail(booking)} className="py-3 rounded-2xl bg-blue-600/10 text-blue-500 text-[9px] uppercase font-black tracking-widest hover:bg-blue-600/20 transition-all border border-blue-600/20">Email</button>
+                                       </>
+                                    )}
+                                    {booking.status === 'cancelled' && (
+                                      <button onClick={() => rebook(booking)} className="col-span-2 py-3 rounded-2xl bg-blue-600 text-white text-[9px] uppercase font-black tracking-widest shadow-lg shadow-blue-500/20 active:scale-95 transition-all">Retry Booking</button>
+                                    )}
                                   </div>
                                 </div>
                               );
@@ -1299,7 +1491,7 @@ export default function Dashboard() {
                 <div className="max-w-4xl">
                   <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 mb-6 group cursor-default">
                     <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-blue-500">Est. 2021 · Delhi NCR</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-blue-500">Est. 2021 | Delhi NCR</span>
                   </div>
                   <h1 className="text-5xl lg:text-8xl font-black premium-text leading-[1.1] tracking-tight">
                     Reliable help for <br/>
@@ -1307,30 +1499,30 @@ export default function Dashboard() {
                   </h1>
                   <p className={`mt-8 text-lg lg:text-xl leading-relaxed ${colors.cardText} max-w-2xl opacity-80`}>
                     We connect families and businesses with verified experts for essential home services across Delhi NCR. 
-                    Our focus is simple — transparent pricing, punctual visits, and quality-first execution. 
+                    Our focus is simple - transparent pricing, punctual visits, and quality-first execution. 
                     No surprises, no excuses.
                   </p>
                   <div className="mt-12 flex flex-wrap gap-4">
                     <button 
                       onClick={() => switchView("services")}
-                      className="px-8 py-4 rounded-2xl bg-blue-600 text-white text-xs font-black uppercase tracking-widest shadow-2xl shadow-blue-500/20 hover:scale-[1.05] transition-all flex items-center gap-3"
+                      className={`px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-widest shadow-2xl shadow-blue-500/20 hover:scale-[1.05] flex items-center gap-3 theme-button-motion ${colors.primaryButton}`}
                     >
-                      Browse services <span>→</span>
+                      Browse services <span>{"->"}</span>
                     </button>
                     <a 
                       href="https://wa.me/919811797407" 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className={`px-8 py-4 rounded-2xl border ${theme === 'dark' ? 'border-white/10 bg-white/5' : 'border-black/10 bg-black/5'} text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500/10 hover:border-emerald-500/30 hover:text-emerald-500 transition-all flex items-center gap-3`}
+                      className={`px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500/10 hover:border-emerald-500/30 hover:text-emerald-500 flex items-center gap-3 theme-button-motion ${colors.secondaryButton}`}
                     >
-                      ✉ Chat with us
+                      Chat with us
                     </a>
                   </div>
                 </div>
                 
                 {/* Background Accent */}
                 <div className="absolute top-1/2 right-0 -translate-y-1/2 translate-x-1/4 opacity-5 pointer-events-none select-none -z-10">
-                  <span className="text-[20rem] font-black tracking-tighter">B@W</span>
+                  <span className="text-[20rem] font-black tracking-tighter">H</span>
                 </div>
               </section>
 
@@ -1338,10 +1530,10 @@ export default function Dashboard() {
               <section className="px-6 lg:px-24 py-12">
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   {[
-                    { label: "Bookings completed", value: `${(totalBookingsCount / 1000).toFixed(1)}K+`, icon: "📅", color: "text-blue-500" },
-                    { label: "Verified professionals", value: "170+", icon: "🛠", color: "text-blue-500" },
-                    { label: "Average rating", value: "4.8", icon: "⭐", color: "text-amber-400" },
-                    { label: "Areas in Delhi NCR", value: "12+", icon: "📍", color: "text-blue-500" },
+                    { label: "Bookings completed", value: `${(totalBookingsCount / 1000).toFixed(1)}K+`, icon: "CAL", color: "text-blue-500" },
+                    { label: "Verified professionals", value: "170+", icon: "PRO", color: "text-blue-500" },
+                    { label: "Average rating", value: "4.8", icon: "STAR", color: "text-amber-400" },
+                    { label: "Areas in Delhi NCR", value: "12+", icon: "MAP", color: "text-blue-500" },
                   ].map((stat) => (
                     <div key={stat.label} className={`glass rounded-[32px] border p-8 ${colors.glass} flex flex-col items-center text-center group hover:border-blue-500/30 transition-all`}>
                       <span className="text-2xl mb-4 group-hover:scale-110 transition-transform">{stat.icon}</span>
@@ -1364,19 +1556,19 @@ export default function Dashboard() {
                   {[
                     { 
                       title: "Verified workforce", 
-                      icon: "✅", 
+                      icon: "OK", 
                       bg: "bg-emerald-500/10",
                       desc: "Every professional undergoes background checks, skill assessments, and reference verification before being listed on our platform." 
                     },
                     { 
                       title: "Transparent pricing", 
-                      icon: "📋", 
+                      icon: "LIST", 
                       bg: "bg-purple-500/10",
                       desc: "You see the price before you book. No hidden fees, no unnecessary add-ons at the door. What you see is exactly what you pay." 
                     },
                     { 
                       title: "Customer first", 
-                      icon: "💕", 
+                      icon: "CARE", 
                       bg: "bg-rose-500/10",
                       desc: "From booking to completion, our support team is available 7 days a week. We follow up after every service to ensure satisfaction." 
                     },
@@ -1401,7 +1593,7 @@ export default function Dashboard() {
                         Houserve was founded in 2021 after our founders struggled to find reliable, fairly-priced home service professionals in Delhi. Every call ended with a no-show, an inflated bill, or untrained workers.
                       </p>
                       <p>
-                        We built a platform that solves exactly that — a curated network of verified professionals, transparent pricing, and a booking experience that actually works. Today we serve thousands of households across Delhi NCR every month.
+                        We built a platform that solves exactly that - a curated network of verified professionals, transparent pricing, and a booking experience that actually works. Today we serve thousands of households across Delhi NCR every month.
                       </p>
                     </div>
                   </div>
@@ -1417,7 +1609,7 @@ export default function Dashboard() {
                         { year: "2025", event: "Pan-India expansion", detail: "Targeting Mumbai, Bangalore, and Pune. Coming soon.", blur: true },
                       ].map((t) => (
                         <div key={t.year} className={`relative pl-10 group ${t.blur ? 'opacity-30' : ''}`}>
-                          <div className={`absolute left-0 top-1.5 w-4 h-4 rounded-full border-2 ${t.blur ? 'bg-zinc-800 border-zinc-700' : 'bg-blue-600 border-blue-400shadow-[0_0_10px_rgba(37,99,235,0.5)]'} z-10 group-hover:scale-125 transition-transform`}></div>
+                          <div className={`absolute left-0 top-1.5 w-4 h-4 rounded-full border-2 ${t.blur ? 'bg-zinc-800 border-zinc-700' : 'bg-blue-600 border-blue-400 shadow-[0_0_10px_rgba(37,99,235,0.5)]'} z-10 group-hover:scale-125 transition-transform`}></div>
                           <div className="flex flex-col">
                             <span className={`text-[10px] font-black tracking-widest uppercase mb-1 ${colors.subtext}`}>{t.year}</span>
                             <h4 className={`text-base font-black ${colors.text}`}>{t.event}</h4>
@@ -1460,27 +1652,27 @@ export default function Dashboard() {
                 </div>
               </section>
 
-              {/* Trust Signals */}
-              <section className="px-6 lg:px-24 py-16 lg:py-24">
-                <div className="mb-12">
-                  <h2 className="text-4xl lg:text-5xl font-black premium-text">Why customers trust us</h2>
-                  <p className={`text-sm tracking-widest ${colors.subtext} font-bold mt-2`}>Built-in guarantees on every booking</p>
+              {/* Trust Signals - Mobile Scroll */}
+              <section className="px-4 lg:px-24 py-12 lg:py-24">
+                <div className="mb-8 px-2">
+                  <h2 className="text-2xl lg:text-5xl font-black premium-text">Trust & Safety</h2>
+                  <p className={`text-[10px] lg:text-sm tracking-widest ${colors.subtext} font-black uppercase lg:normal-case mt-1 lg:mt-2`}>Built-in guarantees on every booking</p>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="flex lg:grid lg:grid-cols-3 gap-4 lg:gap-6 overflow-x-auto lg:overflow-visible no-scrollbar pb-6 lg:pb-0 -mx-4 px-4 lg:mx-0 lg:px-0">
                   {[
-                    { title: "GST registered", icon: "📑", desc: "Fully compliant business. GST invoices available for every booking." },
-                    { title: "Insured work", icon: "🛡", desc: "All service jobs are covered. Any damage during service is on us." },
-                    { title: "Licensed professionals", icon: "👷", desc: "Every pro is licensed, background checked and skill-tested before onboarding." },
-                    { title: "On-time guarantee", icon: "⌚", desc: "We show up in the slot you choose. Late arrival = 15% off on your next booking." },
-                    { title: "Re-service policy", icon: "🔄", desc: "Not satisfied? We'll send a professional back at no extra charge within 48 hours." },
-                    { title: "Secure payments", icon: "🔒", desc: "All transactions are encrypted. We never store card details on our servers." },
+                    { title: "GST registered", icon: "GST", desc: "Fully compliant business. GST invoices available for every booking." },
+                    { title: "Insured work", icon: "SAFE", desc: "All service jobs are covered. Any damage during service is on us." },
+                    { title: "Licensed pros", icon: "PRO", desc: "Every pro is licensed, background checked and skill-tested before onboarding." },
+                    { title: "On-time guarantee", icon: "TIME", desc: "We show up in the slot you choose. Late arrival = 15% off next booking." },
+                    { title: "Re-service policy", icon: "REDO", desc: "Not satisfied? We'll send a pro back at no extra charge within 48 hours." },
+                    { title: "Secure payments", icon: "LOCK", desc: "All transactions are encrypted. We never store card details." },
                   ].map((s) => (
-                    <div key={s.title} className={`p-8 rounded-[32px] border ${theme === 'dark' ? 'border-white/5 bg-white/[0.02]' : 'border-black/5 bg-black/[0.02]'} group hover:border-blue-500/20 transition-all`}>
-                      <div className="flex items-start gap-5">
+                    <div key={s.title} className={`min-w-[240px] lg:min-w-0 p-6 rounded-[32px] border ${theme === 'dark' ? 'border-white/5 bg-white/[0.02]' : 'border-black/5 bg-black/[0.02]'} group hover:border-blue-500/20 transition-all`}>
+                      <div className="flex flex-col gap-4">
                         <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-xl group-hover:scale-110 transition-transform">{s.icon}</div>
                         <div>
-                          <h4 className={`text-lg font-black ${colors.text} mb-2`}>{s.title}</h4>
-                          <p className={`text-xs leading-relaxed ${colors.cardText} opacity-70`}>{s.desc}</p>
+                          <h4 className={`text-[15px] lg:text-lg font-black ${colors.text} mb-2`}>{s.title}</h4>
+                          <p className={`text-[11px] lg:text-xs leading-relaxed ${colors.cardText} opacity-60`}>{s.desc}</p>
                         </div>
                       </div>
                     </div>
@@ -1488,31 +1680,35 @@ export default function Dashboard() {
                 </div>
               </section>
 
-              {/* CTA Banner */}
-              <section className="px-6 lg:px-24 pb-24">
-                <div className="glass rounded-[48px] border border-blue-500/20 bg-gradient-to-br from-blue-600/10 to-transparent p-12 lg:p-20 relative overflow-hidden text-center">
-                  <div className="relative z-10 max-w-2xl mx-auto flex flex-col items-center">
-                    <h2 className="text-3xl lg:text-5xl font-black premium-text mb-6">Ready to book your first service?</h2>
-                    <p className={`text-base lg:text-lg mb-10 ${colors.cardText} opacity-80`}>
-                      Join 4,000+ happy households across Delhi NCR and experience home services the way they should be.
-                    </p>
-                    <div className="flex flex-wrap items-center justify-center gap-4">
-                      <button 
-                         onClick={() => switchView("services")}
-                        className="px-10 py-5 rounded-2xl bg-blue-600 text-white text-sm font-black uppercase tracking-widest shadow-[0_0_40px_rgba(59,130,246,0.6)] hover:scale-[1.1] transition-all border border-blue-400/30"
-                      >
-                        Get started <span>→</span>
-                      </button>
-                      <a 
-                        href="https://wa.me/919811797407" 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className={`px-8 py-4 rounded-2xl border ${theme === 'dark' ? 'border-white/10' : 'border-black/10'} text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500/10 transition-all flex items-center gap-3`}
-                      >
-                        ✉ Chat on WhatsApp
-                      </a>
+              {/* CTA Banner - Mobile Redesign */}
+              <section className="px-4 lg:px-24 pb-24">
+                <div className={`glass rounded-[40px] border p-8 lg:p-20 relative overflow-hidden text-center shadow-2xl ${colors.glass}`}>
+                    <div className={`absolute inset-0 pointer-events-none ${themeMode === "dark" ? "bg-gradient-to-br from-blue-900/20 to-transparent" : "bg-gradient-to-br from-blue-500/10 via-transparent to-amber-500/10"}`} />
+                    <div className="relative z-10 max-w-2xl mx-auto flex flex-col items-center">
+                        <h2 className={`text-3xl lg:text-5xl font-black mb-4 lg:mb-6 ${colors.text}`}>Ready to book?</h2>
+                        <p className={`text-sm lg:text-lg mb-8 lg:mb-10 font-bold max-w-md ${colors.cardText}`}>
+                        Join 4,000+ households across Delhi NCR and simplify your home maintenance today.
+                        </p>
+                        
+                        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-center gap-3 lg:gap-4 w-full lg:w-fit">
+                        <button 
+                            onClick={() => switchView("services")}
+                            className={`w-full lg:w-fit px-10 py-4 lg:py-5 rounded-2xl text-[12px] font-black uppercase tracking-[0.2em] shadow-[0_0_40px_rgba(59,130,246,0.4)] hover:scale-[1.05] active:scale-95 theme-button-motion ${colors.primaryButton}`}
+                        >
+                            Get started <span>{"->"}</span>
+                        </button>
+                        
+                        <a 
+                            href="https://wa.me/919811797407" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className={`w-full lg:w-fit px-8 py-4 rounded-2xl text-[12px] font-black uppercase tracking-widest hover:bg-emerald-500/10 hover:border-emerald-500/30 theme-button-motion flex items-center justify-center gap-3 active:scale-95 ${colors.secondaryButton}`}
+                        >
+                            <span className="text-[10px] font-black">WA</span>
+                            <span className="lg:hidden">WhatsApp</span>
+                        </a>
+                        </div>
                     </div>
-                  </div>
                 </div>
               </section>
             </div>
@@ -1544,29 +1740,34 @@ export default function Dashboard() {
                     {/* Contact Cards */}
                     <div className="grid grid-cols-1 gap-4">
                       <a href="tel:+919811797407" className={`glass rounded-[24px] border p-6 ${colors.glass} group hover:border-blue-500/50 transition-all flex items-center gap-5`}>
-                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl bg-blue-500/10 text-blue-500 group-hover:scale-110 transition-transform`}>📞</div>
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-[10px] font-black bg-blue-500/10 text-blue-500 group-hover:scale-110 transition-transform`}>CALL</div>
                         <div>
                           <p className={`text-[10px] uppercase tracking-widest ${colors.subtext} mb-1 font-bold`}>Phone</p>
                           <p className={`text-xl font-black ${colors.text}`}>+91 9811797407</p>
-                          <p className={`text-[10px] ${colors.subtext} mt-1`}>Tap to call · Mon-Sun 9am-8pm</p>
+                          <p className={`text-[10px] ${colors.subtext} mt-1`}>Tap to call | Mon-Sun 9am-8pm</p>
                         </div>
                       </a>
 
-                      <a href="mailto:shivskukreja@gmail.com" className={`glass rounded-[24px] border p-6 ${colors.glass} group hover:border-blue-500/50 transition-all flex items-center gap-5`}>
-                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl bg-purple-500/10 text-purple-500 group-hover:scale-110 transition-transform`}>✉</div>
+                      <a 
+                        href="https://mail.google.com/mail/?view=cm&fs=1&to=shivskukreja@gmail.com&su=Inquiry&body=Hi%20Houserve%2C%0A%0A" 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className={`glass rounded-[24px] border p-6 ${colors.glass} group hover:border-blue-500/50 transition-all flex items-center gap-5`}
+                      >
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-[10px] font-black bg-purple-500/10 text-purple-500 group-hover:scale-110 transition-transform`}>MAIL</div>
                         <div>
                           <p className={`text-[10px] uppercase tracking-widest ${colors.subtext} mb-1 font-bold`}>Email</p>
                           <p className={`text-xl font-black ${colors.text}`}>shivskukreja@gmail.com</p>
-                          <p className={`text-[10px] ${colors.subtext} mt-1`}>Tap to email · Reply within 2 hours</p>
+                          <p className={`text-[10px] ${colors.subtext} mt-1`}>Tap to email | Reply within 2 hours</p>
                         </div>
                       </a>
 
                       <a href="https://maps.google.com/?q=9+Guru+Nanak+Market+New+Delhi+110024" target="_blank" rel="noopener noreferrer" className={`glass rounded-[24px] border p-6 ${colors.glass} group hover:border-blue-500/50 transition-all flex items-center gap-5`}>
-                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl bg-rose-500/10 text-rose-500 group-hover:scale-110 transition-transform`}>📍</div>
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-[10px] font-black bg-rose-500/10 text-rose-500 group-hover:scale-110 transition-transform`}>MAP</div>
                         <div>
                           <p className={`text-[10px] uppercase tracking-widest ${colors.subtext} mb-1 font-bold`}>Service Address</p>
                           <p className={`text-xl font-black ${colors.text}`}>9 Guru Nanak Market</p>
-                          <p className={`text-[10px] ${colors.subtext} mt-1`}>New Delhi — 110024 · Tap to open maps</p>
+                          <p className={`text-[10px] ${colors.subtext} mt-1`}>New Delhi - 110024 | Tap to open maps</p>
                         </div>
                       </a>
                     </div>
@@ -1607,7 +1808,7 @@ export default function Dashboard() {
                         <a href="https://wa.me/919811797407" target="_blank" rel="noopener noreferrer" className={`flex-1 glass border py-3.5 rounded-2xl flex items-center justify-center gap-3 text-xs font-bold transition-all hover:bg-emerald-500/10 hover:border-emerald-500/40 text-[#25D366] ${colors.glass}`}>
                           <span>WhatsApp</span>
                         </a>
-                        <a href="https://instagram.com/boysatwork.official/" target="_blank" rel="noopener noreferrer" className={`flex-1 glass border py-3.5 rounded-2xl flex items-center justify-center gap-3 text-xs font-bold transition-all hover:bg-pink-500/10 hover:border-pink-500/40 text-[#E4405F] ${colors.glass}`}>
+                        <a href="https://instagram.com/houserve.official/" target="_blank" rel="noopener noreferrer" className={`flex-1 glass border py-3.5 rounded-2xl flex items-center justify-center gap-3 text-xs font-bold transition-all hover:bg-pink-500/10 hover:border-pink-500/40 text-[#E4405F] ${colors.glass}`}>
                           <span>Instagram</span>
                         </a>
                       </div>
@@ -1618,7 +1819,7 @@ export default function Dashboard() {
                   <div className={`glass rounded-[40px] border p-8 lg:p-12 ${colors.glass} flex flex-col relative overflow-hidden`}>
                     {contactSuccess ? (
                       <div className="flex-1 flex flex-col items-center justify-center text-center animate-in fade-in zoom-in-95 duration-500">
-                        <div className="w-24 h-24 rounded-full bg-emerald-500/10 flex items-center justify-center text-5xl mb-8">✅</div>
+                        <div className="w-24 h-24 rounded-full bg-emerald-500/10 flex items-center justify-center text-5xl mb-8"></div>
                         <h3 className="text-4xl font-black premium-text mb-4">Message sent!</h3>
                         <p className={`text-lg ${colors.cardText} opacity-70 mb-10`}>
                           Thank you, {contactForm.name}! We've received your inquiry for <strong>{contactForm.service}</strong> services. Our team will get back to you within 2 hours.
@@ -1644,7 +1845,7 @@ export default function Dashboard() {
                                 value={contactForm.name}
                                 onChange={(e) => setContactForm({...contactForm, name: e.target.value})}
                                 placeholder="Aditya"
-                                className={`w-full bg-white/5 border ${formErrors.name ? 'border-red-500' : 'border-white/10'} rounded-2xl py-4 px-6 text-sm focus:border-blue-500/50 focus:bg-white/10 transition-all outline-none`}
+                                className={`w-full border rounded-2xl py-4 px-6 text-sm focus:border-blue-500/50 transition-all outline-none ${formErrors.name ? 'border-red-500' : colors.inputBg}`}
                               />
                             </div>
                             <div className="space-y-2">
@@ -1654,7 +1855,7 @@ export default function Dashboard() {
                                 value={contactForm.phone}
                                 onChange={(e) => setContactForm({...contactForm, phone: e.target.value})}
                                 placeholder="+91 9319409696"
-                                className={`w-full bg-white/5 border ${formErrors.phone ? 'border-red-500' : 'border-white/10'} rounded-2xl py-4 px-6 text-sm focus:border-blue-500/50 focus:bg-white/10 transition-all outline-none`}
+                                className={`w-full border rounded-2xl py-4 px-6 text-sm focus:border-blue-500/50 transition-all outline-none ${formErrors.phone ? 'border-red-500' : colors.inputBg}`}
                               />
                             </div>
                           </div>
@@ -1666,7 +1867,7 @@ export default function Dashboard() {
                               value={contactForm.email}
                               onChange={(e) => setContactForm({...contactForm, email: e.target.value})}
                               placeholder="your@email.com"
-                              className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-sm focus:border-blue-500/50 focus:bg-white/10 transition-all outline-none"
+                              className={`w-full border rounded-2xl py-4 px-6 text-sm focus:border-blue-500/50 transition-all outline-none ${colors.inputBg}`}
                             />
                           </div>
 
@@ -1678,7 +1879,7 @@ export default function Dashboard() {
                                   type="button"
                                   key={s}
                                   onClick={() => setContactForm({...contactForm, service: s})}
-                                  className={`px-5 py-2.5 rounded-xl text-[10px] font-bold transition-all border ${contactForm.service === s ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/20' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10'}`}
+                                  className={`px-5 py-2.5 rounded-xl text-[10px] font-bold transition-all border theme-button-motion ${contactForm.service === s ? colors.activeChip : colors.inactiveChip}`}
                                 >
                                   {s}
                                 </button>
@@ -1698,15 +1899,15 @@ export default function Dashboard() {
                               onChange={(e) => setContactForm({...contactForm, message: e.target.value.slice(0, 300)})}
                               placeholder="Tell us about your requirement..."
                               rows={4}
-                              className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-6 text-sm focus:border-blue-500/50 focus:bg-white/10 transition-all outline-none resize-none"
+                              className={`w-full border rounded-2xl py-4 px-6 text-sm focus:border-blue-500/50 transition-all outline-none resize-none ${colors.inputBg}`}
                             />
                           </div>
 
                           <button 
                             type="submit"
-                            className="w-full bg-white/10 border border-white/20 hover:bg-white/20 py-5 rounded-2xl text-xs font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 group"
+                            className={`w-full py-5 rounded-2xl text-xs font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 group theme-button-motion ${colors.primaryButton}`}
                           >
-                            Send message <span className="text-lg group-hover:translate-x-1 transition-transform">→</span>
+                            Send message <span className="text-lg group-hover:translate-x-1 transition-transform">{"->"}</span>
                           </button>
                         </form>
                       </>
@@ -1719,11 +1920,11 @@ export default function Dashboard() {
                   <div className={`glass rounded-[40px] border ${colors.glass} overflow-hidden`}>
                     <div className="p-6 border-b border-white/5 flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <span className="text-xl">📍</span>
-                        <h4 className={`text-sm font-bold ${colors.text}`}>Service area — Delhi NCR</h4>
+                        <span className="text-[10px] font-black">MAP</span>
+                        <h4 className={`text-sm font-bold ${colors.text}`}>Service area - Delhi NCR</h4>
                       </div>
                       <a href="https://maps.google.com/?q=9+Guru+Nanak+Market+New+Delhi+110024" target="_blank" rel="noopener noreferrer" className="px-4 py-2 rounded-xl bg-blue-600/10 text-blue-500 text-[10px] font-black uppercase tracking-widest transition-all hover:bg-blue-600/20">
-                        Open in Maps ↗
+                        Open in Maps {"->"}
                       </a>
                     </div>
                     <div className="relative h-96 bg-[#0a0f18] p-12 flex items-center justify-center group">
@@ -1735,8 +1936,8 @@ export default function Dashboard() {
                       
                       {/* Inner dot */}
                       <div className="relative w-4 h-4 rounded-full bg-blue-600 shadow-[0_0_15px_rgba(37,99,235,1)]">
-                        <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-white text-black text-[10px] font-bold px-3 py-1.5 rounded-full whitespace-nowrap shadow-xl">
-                          📍 9 Guru Nanak Market, New Delhi
+                        <div className={`absolute -top-12 left-1/2 -translate-x-1/2 text-[10px] font-bold px-3 py-1.5 rounded-full whitespace-nowrap shadow-xl border ${colors.panelStrong} ${colors.text}`}>
+                          9 Guru Nanak Market, New Delhi
                         </div>
                       </div>
                     </div>
@@ -1747,7 +1948,7 @@ export default function Dashboard() {
                       onClick={() => switchView("services")}
                       className="flex-1 bg-blue-600 text-white py-5 rounded-[20px] text-xs font-black uppercase tracking-[0.2em] shadow-2xl shadow-blue-600/20 hover:scale-[1.02] transition-all flex items-center justify-center gap-3 group"
                     >
-                      Continue to booking <span className="text-lg group-hover:translate-x-1 transition-transform">→</span>
+                      Continue to booking <span className="text-lg group-hover:translate-x-1 transition-transform">{"->"}</span>
                     </button>
                     <a 
                       href="https://wa.me/919811797407?text=Hi%20Houserve!%20I%20want%20to%20book%20a%20service."
@@ -1755,10 +1956,85 @@ export default function Dashboard() {
                       rel="noopener noreferrer"
                       className="flex-1 border-2 border-emerald-500/30 text-emerald-500 py-5 rounded-[20px] text-xs font-black uppercase tracking-[0.2em] hover:bg-emerald-500/10 transition-all flex items-center justify-center gap-3 group"
                     >
-                      ✉ Chat on WhatsApp <span className="opacity-60 text-xs">Hi Houserve!...</span>
+                      Chat on WhatsApp <span className="opacity-60 text-xs">Hi Houserve!...</span>
                     </a>
                   </div>
                 </div>
+              </div>
+            </section>
+          )}
+
+          {currentView === "profile" && (
+            <section className="px-6 py-12 lg:py-20 relative z-20 max-w-2xl mx-auto">
+              {/* Profile Header */}
+              <div className="flex flex-col items-center mb-12 animate-in fade-in slide-in-from-bottom-4">
+                <div className={`w-24 h-24 rounded-[32px] bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-4xl font-black text-white shadow-2xl shadow-blue-500/20 mb-6`}>
+                  {userInitials}
+                </div>
+                <h2 className={`text-3xl font-black ${colors.text} mb-1 tracking-tight`}>{profile?.name || "Member"}</h2>
+                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-blue-500">Premium Member</span>
+                </div>
+              </div>
+
+              {/* Account Details */}
+              <div className="space-y-4 mb-12">
+                <label className={`text-[10px] uppercase font-black tracking-[0.2em] ${colors.subtext} px-2`}>Account Details</label>
+                <div className="grid grid-cols-1 gap-3">
+                  {[
+                    { label: 'Mobile Number', value: formatPhoneForDisplay(profile?.phone) || "Not set", icon: 'PH', color: 'bg-blue-500/10 text-blue-500' },
+                    { label: 'Email Address', value: profile?.email || "Not set", icon: 'MAIL', color: 'bg-purple-500/10 text-purple-500' },
+                    { label: 'Saved Location', value: profile?.location || "Not set", icon: 'MAP', color: 'bg-rose-500/10 text-rose-500' },
+                  ].map((item) => (
+                    <div key={item.label} className={`glass p-5 rounded-3xl border ${colors.glass} flex items-center gap-5 group hover:border-blue-500/30 transition-all`}>
+                      <div className={`w-12 h-12 rounded-2xl ${item.color} flex items-center justify-center text-xl group-hover:scale-110 transition-transform`}>
+                        {item.icon}
+                      </div>
+                      <div>
+                        <p className={`text-[9px] uppercase tracking-widest ${colors.subtext} font-black mb-0.5`}>{item.label}</p>
+                        <p className={`font-black ${colors.text}`}>{item.value}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Support Section */}
+              <div className="space-y-4 mb-12">
+                <label className={`text-[10px] uppercase font-black tracking-[0.2em] ${colors.subtext} px-2`}>Need Help?</label>
+                <div className={`glass p-6 rounded-[32px] border ${colors.glass} bg-blue-600/5`}>
+                  <p className={`text-sm font-bold ${colors.text} mb-6 leading-relaxed`}>Questions about your booking? Our team is available 9am - 8pm.</p>
+                  <div className="flex flex-col gap-3">
+                    <a 
+                      href="https://wa.me/919811797407?text=Hi%20Houserve!%20I%20need%20support%20with%20my%20profile."
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full py-4 bg-[#25D366] text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-[#25D366]/20 flex items-center justify-center gap-2 hover:bg-[#128C7E] transition-all"
+                    >
+                      <span>Chat on WhatsApp</span>
+                    </a>
+                    <a 
+                      href="https://mail.google.com/mail/?view=cm&fs=1&to=shivskukreja@gmail.com&su=Support%20Request&body=Hi%20Houserve%2C%0A%0AI%20need%20help%20with..."
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`w-full py-4 rounded-2xl border ${theme === 'dark' ? 'border-white/10 bg-white/5' : 'border-black/10 bg-black/5'} font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 hover:bg-blue-500/10 transition-all ${colors.text}`}
+                    >
+                      <span>Email Support</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="pt-6 border-t border-white/10 mb-20 md:mb-10">
+                <button 
+                  onClick={handleLogout}
+                  className="w-full py-5 rounded-3xl bg-red-500/10 border border-red-500/20 text-red-500 font-black uppercase tracking-widest text-[11px] hover:bg-red-500/20 transition-all flex items-center justify-center gap-3"
+                >
+                  <span className="text-[10px] font-black">OUT</span> Logout Account
+                </button>
+                <p className={`text-center text-[10px] ${colors.subtext} mt-6 font-medium`}>Version 2.4.0 (Stable) | Houserve Premium</p>
               </div>
             </section>
           )}
@@ -1770,10 +2046,10 @@ export default function Dashboard() {
                 <p className={`text-sm leading-relaxed mt-4 ${colors.cardText}`}>Trusted partner for home services in Delhi NCR. We connect you with top-rated professionals.</p>
                 <div className="flex items-center gap-3 mt-6">
                   {[
-                    { icon: 'IG', url: 'https://www.instagram.com/boysatwork.official/' },
+                    { icon: 'IG', url: 'https://www.instagram.com/houserve.official/' },
                     { icon: 'YT', url: '#' }
                   ].map((social) => (
-                    <a key={social.icon} href={social.url} target="_blank" rel="noopener noreferrer" className={`w-10 h-10 rounded-full border flex items-center justify-center text-sm font-bold transition-all hover:bg-blue-600 hover:text-white hover:border-transparent ${theme === 'dark' ? 'border-white/20 text-white' : 'border-black/20 text-black'}`}>
+                    <a key={social.icon} href={social.url} target="_blank" rel="noopener noreferrer" className={`w-10 h-10 rounded-full border flex items-center justify-center text-sm font-bold theme-button-motion hover:bg-blue-600 hover:text-white hover:border-transparent ${colors.footerBadge}`}>
                       {social.icon}
                     </a>
                   ))}
@@ -1801,15 +2077,20 @@ export default function Dashboard() {
                 <h4 className={`text-[11px] uppercase tracking-widest font-black ${colors.text}`}>Contact</h4>
                 <div className={`space-y-4 text-sm mt-6 ${colors.cardText}`}>
                   <a href="#" className="flex gap-3 hover:text-blue-500 transition-colors group">
-                    <span className={`w-8 h-8 rounded-full border flex items-center justify-center shrink-0 group-hover:bg-blue-500/10 group-hover:border-blue-500/30 ${theme === 'dark' ? 'border-white/10' : 'border-black/10'}`}>📍</span>
+                    <span className={`w-8 h-8 rounded-full border flex items-center justify-center shrink-0 text-[9px] font-black group-hover:bg-blue-500/10 group-hover:border-blue-500/30 ${theme === 'dark' ? 'border-white/10' : 'border-black/10'}`}>MAP</span>
                     <span className="mt-1">9 Guru Nanak Market, New Delhi - 110024</span>
                   </a>
                   <a href="tel:+919811797407" className="flex items-center gap-3 hover:text-blue-500 transition-colors group">
-                    <span className={`w-8 h-8 rounded-full border flex items-center justify-center shrink-0 group-hover:bg-blue-500/10 group-hover:border-blue-500/30 ${theme === 'dark' ? 'border-white/10' : 'border-black/10'}`}>📞</span>
+                    <span className={`w-8 h-8 rounded-full border flex items-center justify-center shrink-0 text-[9px] font-black group-hover:bg-blue-500/10 group-hover:border-blue-500/30 ${theme === 'dark' ? 'border-white/10' : 'border-black/10'}`}>CALL</span>
                     <span>+91 9811797407</span>
                   </a>
-                  <a href="mailto:shivskukreja@gmail.com" className="flex items-center gap-3 hover:text-blue-500 transition-colors group">
-                    <span className={`w-8 h-8 rounded-full border flex items-center justify-center shrink-0 group-hover:bg-blue-500/10 group-hover:border-blue-500/30 ${theme === 'dark' ? 'border-white/10' : 'border-black/10'}`}>✉</span>
+                  <a 
+                    href="https://mail.google.com/mail/?view=cm&fs=1&to=shivskukreja@gmail.com&su=General%20Inquiry&body=Hi%20Houserve%2C%0A%0A" 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="flex items-center gap-3 hover:text-blue-500 transition-colors group"
+                  >
+                    <span className={`w-8 h-8 rounded-full border flex items-center justify-center shrink-0 text-[9px] font-black group-hover:bg-blue-500/10 group-hover:border-blue-500/30 ${theme === 'dark' ? 'border-white/10' : 'border-black/10'}`}>MAIL</span>
                     <span>shivskukreja@gmail.com</span>
                   </a>
                 </div>
@@ -1817,16 +2098,16 @@ export default function Dashboard() {
             </div>
 
             <div className={`pt-6 border-t flex flex-col lg:flex-row items-center justify-between gap-6 ${theme === 'dark' ? 'border-white/10' : 'border-black/10'}`}>
-              <p className={`text-xs ${colors.subtext}`}>© 2025 Houserve. All rights reserved.</p>
+              <p className={`text-xs ${colors.subtext}`}>(c) 2025 Houserve. All rights reserved.</p>
               <div className="flex items-center gap-4 flex-wrap justify-center">
                 {[
-                  { text: '✓ GST registered', tooltip: 'Registered with Government of India' },
-                  { text: '✓ Licensed pros', tooltip: 'All experts undergo background checks' },
-                  { text: '✓ Insured work', tooltip: 'Protection up to ₹10,000 on damages' }
+                  { text: 'OK GST registered', tooltip: 'Registered with Government of India' },
+                  { text: 'OK Licensed pros', tooltip: 'All experts undergo background checks' },
+                  { text: 'OK Insured work', tooltip: 'Protection up to Rs 10,000 on damages' }
                 ].map((badge) => (
                   <div key={badge.text} className="relative group cursor-help">
-                    <span className={`px-4 py-2 rounded-full border text-[11px] font-bold ${theme === 'dark' ? 'border-white/10 text-white/70 hover:bg-white/5' : 'border-black/10 text-black/70 hover:bg-black/5'} transition-colors`}>{badge.text}</span>
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max px-3 py-1.5 bg-black text-white text-[10px] rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
+                    <span className={`px-4 py-2 rounded-full border text-[11px] font-bold theme-button-motion ${colors.footerBadge}`}>{badge.text}</span>
+                    <div className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max px-3 py-1.5 text-[10px] rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all border ${colors.panelStrong} ${colors.text}`}>
                       {badge.tooltip}
                     </div>
                   </div>

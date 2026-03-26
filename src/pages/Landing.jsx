@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import "../styles/global.css";
 import VideoBackground from "../components/background/VideoBackground";
-import SearchBar from "../components/layout/SearchBar";
 import Login from "./Login";
 
 export default function Landing({ initialLoginOpen = false }) {
@@ -96,7 +95,7 @@ export default function Landing({ initialLoginOpen = false }) {
             </button>
             <button 
                 className="wa-outline-btn px-10 py-5 text-[13px] font-bold tracking-widest uppercase min-w-[200px]"
-                onClick={() => window.open("https://wa.me/919811797407", "_blank")}
+                onClick={() => window.open("https://wa.me/919811797407", "_blank", "noopener,noreferrer")}
             >
                 <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WA" className="w-5 h-5" />
                 Whatsapp us
