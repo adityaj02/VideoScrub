@@ -1,0 +1,27 @@
+{
+  "table": "orders",
+  "keys": [
+    "order_id",
+    "user_id",
+    "service_id",
+    "status",
+    "created_at",
+    "service_name",
+    "scheduled_date",
+    "scheduled_time",
+    "address"
+  ],
+  "sample": [
+    {
+      "order_id": "61fda688-9576-4864-b1c6-1067518a63df",
+      "user_id": "90e40243-6e29-4b42-a86b-2ce152fa1381",
+      "service_id": "a1000000-0000-0000-0000-000000000001",
+      "status": "pending",
+      "created_at": "2026-03-20T14:17:31.179071+00:00",
+      "service_name": "Plumbing",
+      "scheduled_date": "2026-03-22",
+      "scheduled_time": "13:00",
+      "address": null
+    }
+  ]
+}

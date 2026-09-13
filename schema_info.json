@@ -1,0 +1,46 @@
+{
+  "keys": [
+    "service_id",
+    "name",
+    "description",
+    "price",
+    "created_at"
+  ],
+  "sample": [
+    {
+      "service_id": "a1000000-0000-0000-0000-000000000001",
+      "name": "Plumbing",
+      "description": "Expert plumbing solutions for your home and office. From leaky faucets to complete bathroom installations.",
+      "price": 349,
+      "created_at": "2026-03-20T14:12:58.985984+00:00"
+    },
+    {
+      "service_id": "a1000000-0000-0000-0000-000000000002",
+      "name": "Electrical",
+      "description": "Professional electrical services ensuring safety and efficiency. All work compliant with safety standards.",
+      "price": 299,
+      "created_at": "2026-03-20T14:12:58.985984+00:00"
+    },
+    {
+      "service_id": "a1000000-0000-0000-0000-000000000003",
+      "name": "Carpentry",
+      "description": "Skilled carpenters for all wood work needs. Custom furniture, repairs, and installations.",
+      "price": 499,
+      "created_at": "2026-03-20T14:12:58.985984+00:00"
+    },
+    {
+      "service_id": "a1000000-0000-0000-0000-000000000004",
+      "name": "Painting",
+      "description": "Transform your space with professional painting services. Interior, exterior, and decorative painting.",
+      "price": 1299,
+      "created_at": "2026-03-20T14:12:58.985984+00:00"
+    },
+    {
+      "service_id": "a1000000-0000-0000-0000-000000000005",
+      "name": "AC Service",
+      "description": "Complete AC solutions — installation, repair, and maintenance for all brands and types.",
+      "price": 799,
+      "created_at": "2026-03-20T14:12:58.985984+00:00"
+    }
+  ]
+}
