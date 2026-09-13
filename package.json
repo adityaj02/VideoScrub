@@ -6,6 +6,7 @@
     "dev": "vite",
     "build": "vite build",
     "start": "node server/server.js",
+    "postinstall": "npm --prefix server install",
     "lint": "eslint .",
     "preview": "vite preview"
   },
