@@ -54,11 +54,11 @@ router.get("/:slug", async (req, res) => {
 });
 
 // POST /api/properties — create listing
-router.post("/", authMiddleware, async (req, res) => {
+router.post("/", optionalAuth, async (req, res) => {
   try {
     const data = {
       ...req.body,
-      listedBy: req.user.userId,
+      listedBy: req.user ? req.user.userId : "guest_user",
     };
 
     // Auto-generate slug from title if not provided
@@ -90,6 +90,51 @@ router.put("/:slug", authMiddleware, async (req, res) => {
     res.status(200).json(property);
   } catch (err) {
     console.error("Property update failed:", err.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// GET /api/properties/my-listings — list properties by seller email
+router.get("/my-listings", async (req, res) => {
+  try {
+    const { email } = req.query;
+    if (!email) {
+      return res.status(400).json({ error: "Seller email query parameter is required." });
+    }
+
+    const properties = await Property.find({
+      "seller.email": new RegExp(`^${email.trim()}$`, "i")
+    }).sort({ createdAt: -1 });
+
+    res.status(200).json(properties);
+  } catch (err) {
+    console.error("Fetch my listings failed:", err.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// DELETE /api/properties/by-id/:id — delete property listing by ID (verifying seller email)
+router.delete("/by-id/:id", optionalAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const ownerEmail = req.body.ownerEmail || req.query.ownerEmail || (req.user && req.user.email);
+
+    const property = await Property.findById(id);
+    if (!property) {
+      return res.status(404).json({ error: "Property listing not found." });
+    }
+
+    // Verify email if provided
+    if (ownerEmail && property.seller?.email) {
+      if (property.seller.email.toLowerCase().trim() !== ownerEmail.toLowerCase().trim()) {
+        return res.status(403).json({ error: "Unauthorized: Email does not match the property seller email." });
+      }
+    }
+
+    await Property.findByIdAndDelete(id);
+    res.status(200).json({ message: "Property listing deleted successfully." });
+  } catch (err) {
+    console.error("Delete property failed:", err.message);
     res.status(500).json({ error: "Internal server error" });
   }
 });

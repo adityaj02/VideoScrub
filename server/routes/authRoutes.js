@@ -25,11 +25,11 @@ router.post("/google", async (req, res) => {
 
     if (credential === "demo_google_credential_dev" || credential.startsWith("demo_")) {
       googleId = "google_user_demo_1001";
-      email = "aditya.user@gmail.com";
-      name = "Aditya User";
+      email = "adityajmarch020304@gmail.com";
+      name = "Aditya J";
       picture = "";
     } else {
-      const googleClientId = process.env.GOOGLE_CLIENT_ID;
+      const googleClientId = process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID;
       const client = new OAuth2Client(googleClientId);
       const ticket = await client.verifyIdToken({
         idToken: credential,

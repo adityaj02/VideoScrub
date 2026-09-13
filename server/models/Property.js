@@ -44,6 +44,13 @@ const propertySchema = new mongoose.Schema(
       email: { type: String, default: "" },
     },
     listedBy: { type: String, default: "" },
+    expiresAt: {
+      type: Date,
+      default: function () {
+        return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      },
+      index: { expires: 0 },
+    },
   },
   { timestamps: true }
 );

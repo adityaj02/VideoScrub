@@ -509,18 +509,30 @@ export default function Dashboard({ onBackToOneHome, initialView }) {
     setToast("Email notifications are being migrated. Please contact support.");
   };
 
-  const handleCancelBooking = async (orderId) => {
-    if (!orderId) return;
+  const handleCancelBooking = async (booking) => {
+    const bookingId = booking.order_id || booking.orderId || booking._id || 'N/A';
+    const rawOrderId = booking.orderId || booking.order_id || booking._id;
+
+    if (!rawOrderId) return;
+    
     try {
-      await apiCancelOrder(orderId);
+      await apiCancelOrder(rawOrderId);
       setBookings((prev) =>
         prev.map((b) =>
-          (b.orderId === orderId || b.order_id === orderId || b._id === orderId)
+          (b.orderId === rawOrderId || b.order_id === rawOrderId || b._id === rawOrderId)
             ? { ...b, status: "cancelled" }
             : b
         )
       );
       setToast("Booking cancelled successfully.");
+      
+      const serviceName = booking.service_name || booking.serviceName || 'Service';
+      const message = `🚨 *HOUSERVE BOOKING CANCELLATION* 🚨\n\n` +
+        `I would like to cancel my booking for ${serviceName}.\n` +
+        `🆔 *Booking ID:* #${String(bookingId).slice(0, 8).toUpperCase()}`;
+
+      const url = `https://wa.me/919811797407?text=${encodeURIComponent(message)}`;
+      window.open(url, '_blank', 'noopener,noreferrer');
     } catch {
       setToast("Unable to cancel booking right now.");
     }
@@ -601,6 +613,12 @@ export default function Dashboard({ onBackToOneHome, initialView }) {
     localStorage.removeItem("checkout_time");
     localStorage.removeItem("checkout_address");
     localStorage.removeItem("checkout_address_details");
+
+    if (profile?.email) {
+      apiFetchOrders(profile.email).then(data => {
+        if (data) setBookings(data);
+      }).catch(err => console.error(err));
+    }
 
     return { success: true, metadata };
   };
@@ -987,8 +1005,8 @@ export default function Dashboard({ onBackToOneHome, initialView }) {
                       <div className="w-12 h-12 rounded-2xl bg-amber-600/10 text-amber-600 flex items-center justify-center mb-3">
                         <span className="material-symbols-outlined text-2xl">{item.icon}</span>
                       </div>
-                      <h4 className="text-lg font-bold text-stone-900 dark:text-stone-100">{item.title}</h4>
-                      <p className="mt-1 text-xs font-medium text-stone-600 dark:text-stone-300">{item.desc}</p>
+                      <h4 className="text-lg font-bold text-black">{item.title}</h4>
+                      <p className="mt-1 text-xs font-medium text-black/80">{item.desc}</p>
                     </div>
                   ))}
                 </div>
@@ -1000,7 +1018,7 @@ export default function Dashboard({ onBackToOneHome, initialView }) {
                     <span className="text-xs uppercase font-bold tracking-widest text-amber-600 block mb-1">
                       Insights & Maintenance
                     </span>
-                    <h2 className="text-3xl lg:text-5xl font-serif italic text-stone-900 dark:text-stone-100">
+                    <h2 className="text-3xl lg:text-5xl font-serif italic text-black">
                       From Our Blog
                     </h2>
                   </div>
@@ -1290,6 +1308,10 @@ export default function Dashboard({ onBackToOneHome, initialView }) {
               submitting={submittingBooking}
               bookingSuccess={bookingSuccess}
               bookingMetadata={bookingMetadata}
+              onViewBookings={() => {
+                setBookingTab("upcoming");
+                switchView("bookings");
+              }}
             />
           )}
 
@@ -1344,6 +1366,10 @@ export default function Dashboard({ onBackToOneHome, initialView }) {
                     bookingMetadata={bookingMetadata}
                     onClearAll={() => setCartItems([])}
                     profile={profile}
+                    onViewBookings={() => {
+                      setBookingTab("upcoming");
+                      switchView("bookings");
+                    }}
                   />
                 )}
 
@@ -1423,7 +1449,7 @@ export default function Dashboard({ onBackToOneHome, initialView }) {
                                         <button onClick={() => openWhatsApp(booking)} className="flex items-center justify-center gap-2 py-3 rounded-2xl bg-[#25D366]/10 text-[#25D366] text-[9px] uppercase font-black tracking-widest hover:bg-[#25D366]/20 transition-all border border-[#25D366]/20 cursor-pointer">
                                            <span>WhatsApp</span>
                                         </button>
-                                        <button onClick={() => handleCancelBooking(rawOrderId)} className="py-3 rounded-2xl bg-red-500/10 text-red-500 text-[9px] uppercase font-black tracking-widest hover:bg-red-500/20 transition-all border border-red-500/20 cursor-pointer">Cancel</button>
+                                        <button onClick={() => handleCancelBooking(booking)} className="py-3 rounded-2xl bg-red-500/10 text-red-500 text-[9px] uppercase font-black tracking-widest hover:bg-red-500/20 transition-all border border-red-500/20 cursor-pointer">Cancel</button>
                                       </>
                                     )}
                                     {booking.status === 'completed' && (

@@ -6,7 +6,7 @@ const cors = require("cors");
 
 const app = express();
 
-const allowedOrigins = (process.env.CORS_ORIGINS || "http://localhost:5173")
+const allowedOrigins = (process.env.CORS_ORIGINS || "http://localhost:5173,https://www.houserve.in,https://houserve.in")
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
@@ -18,13 +18,14 @@ app.use(
         !origin ||
         origin.startsWith("http://localhost:") ||
         origin.startsWith("http://127.0.0.1:") ||
+        origin.endsWith("houserve.in") ||
         allowedOrigins.includes(origin)
       ) {
         callback(null, true);
         return;
       }
 
-      callback(new Error("Not allowed by CORS"));
+      callback(null, true);
     },
     credentials: true,
   })

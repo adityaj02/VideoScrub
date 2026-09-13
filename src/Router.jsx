@@ -11,28 +11,36 @@ import MarketplaceDashboard from "./pages/MarketplaceDashboard";
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
 
 export default function Router() {
-    return (
-        <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-            <AuthProvider>
-                <BrowserRouter>
-                    <Routes>
-                        {/* ── Main app — loads on root ── */}
-                        <Route path="/"             element={<App />} />
-                        <Route path="/dashboard"    element={<App />} />
-                        <Route path="/home"         element={<App />} />
-                        <Route path="/blog"         element={<BlogPage />} />
-                        <Route path="/marketplace" element={<MarketplaceDashboard />} />
-                        <Route path="/blog/:slug" element={<BlogPage />} />
+    const content = (
+        <AuthProvider>
+            <BrowserRouter>
+                <Routes>
+                    {/* ── Main app — loads on root ── */}
+                    <Route path="/"             element={<App />} />
+                    <Route path="/dashboard"    element={<App />} />
+                    <Route path="/home"         element={<App />} />
+                    <Route path="/blog"         element={<BlogPage />} />
+                    <Route path="/marketplace" element={<MarketplaceDashboard />} />
+                    <Route path="/blog/:slug" element={<BlogPage />} />
 
-                        {/* ── Auth flow ── */}
-                        <Route path="/login"         element={<LoginPage />} />
-                        <Route path="/profile"       element={<Profile />} />
+                    {/* ── Auth flow ── */}
+                    <Route path="/login"         element={<LoginPage />} />
+                    <Route path="/profile"       element={<Profile />} />
 
-                        {/* ── Fallback ── */}
-                        <Route path="*" element={<Navigate to="/" replace />} />
-                    </Routes>
-                </BrowserRouter>
-            </AuthProvider>
-        </GoogleOAuthProvider>
+                    {/* ── Fallback ── */}
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+            </BrowserRouter>
+        </AuthProvider>
     );
+
+    if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_ID.trim() !== "") {
+        return (
+            <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+                {content}
+            </GoogleOAuthProvider>
+        );
+    }
+
+    return content;
 }

@@ -55,47 +55,7 @@ const BLOGS = [
   },
 ];
 
-const PROPERTIES = [
-  {
-    title: "Modern 3BHK Apartment in Dwarka Sector 12",
-    slug: "modern-3bhk-dwarka-sector-12",
-    description: "Spacious 3BHK apartment with modern amenities, 24/7 security, and a beautiful community park. East-facing with ample sunlight.",
-    price: 8500000,
-    type: "apartment",
-    status: "available",
-    location: { address: "Plot 45, Sector 12, Dwarka", city: "New Delhi", state: "Delhi", pincode: "110078", coordinates: { lat: 28.5921, lng: 77.0460 } },
-    specs: { bedrooms: 3, bathrooms: 2, areaSqFt: 1450, furnishedStatus: "semi-furnished" },
-    features: ["Parking", "24/7 Security", "Power Backup", "Community Park", "Gym", "Children's Play Area"],
-    images: ["/Assets/real_estate.png"],
-    seller: { name: "Houserve Properties", phone: "9811797407", email: "properties@houserve.in" },
-  },
-  {
-    title: "Premium Villa in Gurgaon DLF Phase 5",
-    slug: "premium-villa-gurgaon-dlf-phase-5",
-    description: "Luxurious 4BHK independent villa with private garden, modular kitchen, and Italian marble flooring. Gated community with club access.",
-    price: 35000000,
-    type: "villa",
-    status: "available",
-    location: { address: "DLF Phase 5, Sector 43", city: "Gurgaon", state: "Haryana", pincode: "122009", coordinates: { lat: 28.4595, lng: 77.0266 } },
-    specs: { bedrooms: 4, bathrooms: 4, areaSqFt: 3200, furnishedStatus: "fully-furnished" },
-    features: ["Private Garden", "Swimming Pool", "Club Access", "Modular Kitchen", "Italian Marble", "Home Theater"],
-    images: ["/Assets/property.png"],
-    seller: { name: "Houserve Properties", phone: "9811797407", email: "properties@houserve.in" },
-  },
-  {
-    title: "Commercial Office Space in Connaught Place",
-    slug: "commercial-office-connaught-place",
-    description: "Prime commercial office space in the heart of Delhi. Ideal for startups and established businesses. Metro connectivity.",
-    price: 4500000,
-    type: "commercial",
-    status: "available",
-    location: { address: "Block A, Connaught Place", city: "New Delhi", state: "Delhi", pincode: "110001", coordinates: { lat: 28.6315, lng: 77.2167 } },
-    specs: { bedrooms: 0, bathrooms: 2, areaSqFt: 850, furnishedStatus: "unfurnished" },
-    features: ["Metro Connectivity", "Parking", "24/7 Security", "Power Backup", "Conference Room", "Pantry Area"],
-    images: ["/Assets/services.png"],
-    seller: { name: "Houserve Properties", phone: "9811797407", email: "properties@houserve.in" },
-  },
-];
+const PROPERTIES = [];
 
 async function seed() {
   const uri = process.env.MONGO_URI;
@@ -117,10 +77,9 @@ async function seed() {
   await Blog.insertMany(BLOGS);
   console.log(`Seeded ${BLOGS.length} blogs`);
 
-  // Seed properties
+  // Clear demo properties
   await Property.deleteMany({});
-  await Property.insertMany(PROPERTIES);
-  console.log(`Seeded ${PROPERTIES.length} properties`);
+  console.log("Cleared all demo properties from MongoDB");
 
   console.log("Seeding complete!");
   await mongoose.disconnect();

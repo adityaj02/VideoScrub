@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import "../styles/global.css";
 import Login from "./Login";
 import Dashboard from "./Dashboard";
+import Properties from "./Properties";
 import { useAuth } from "../context/AuthContext";
 
 export default function Landing({ initialLoginOpen = false }) {
@@ -36,7 +37,7 @@ export default function Landing({ initialLoginOpen = false }) {
               <button onClick={() => setActiveView("overview")} className={`transition-colors cursor-pointer ${activeView === "overview" ? "text-slate-950 font-bold border-b-2 border-slate-950 pb-0.5" : "hover:text-slate-950"}`}>Overview</button>
               <button onClick={() => setActiveView("houserve")} className={`transition-colors cursor-pointer ${activeView === "houserve" ? "text-slate-950 font-bold border-b-2 border-slate-950 pb-0.5" : "hover:text-slate-950"}`}>Houserve</button>
               <a href="https://build-kart-in-is6v.vercel.app/" target="_blank" rel="noopener noreferrer" className="hover:text-slate-950 transition-colors cursor-pointer font-medium">BuildKart</a>
-              <button onClick={() => { setActiveView("overview"); setTimeout(() => document.getElementById("portfolio")?.scrollIntoView({ behavior: "smooth" }), 50); }} className="hover:text-slate-950 transition-colors cursor-pointer">Properties</button>
+              <button onClick={() => setActiveView("properties")} className={`transition-colors cursor-pointer ${activeView === "properties" ? "text-slate-950 font-bold border-b-2 border-slate-950 pb-0.5" : "hover:text-slate-950"}`}>Properties</button>
             </nav>
           </div>
           <div className="flex items-center gap-3">
@@ -59,7 +60,13 @@ export default function Landing({ initialLoginOpen = false }) {
         </div>
       </header>
 
-      <main className="w-full">
+      {activeView === "properties" ? (
+        <Properties
+          onBack={() => setActiveView("overview")}
+          onOpenLogin={() => setOpenLogin(true)}
+        />
+      ) : (
+        <main className="w-full">
         {/* 1. EDITORIAL HERO WITH TOP ARCHITECTURAL BANNER */}
         <div className="w-full px-4 sm:px-6 lg:px-8 pt-4 pb-12">
           <div className="max-w-7xl mx-auto flex flex-col gap-6">
@@ -151,9 +158,6 @@ export default function Landing({ initialLoginOpen = false }) {
               <span className="inline-block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Service Framework</span>
               <h3 className="text-2xl font-display font-bold text-slate-950 tracking-tight">Houserve™ Trades & Maintenance</h3>
             </div>
-            <p className="text-sm text-slate-500 max-w-md mt-2 md:mt-0 font-normal">
-              Background-cleared technicians, standardized rate cards, and a ₹25,000 property protection bond on every booking.
-            </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Service Card 1 */}
@@ -258,7 +262,7 @@ export default function Landing({ initialLoginOpen = false }) {
                   </div>
                 </div>
                 <div className="lg:col-span-5 h-64 lg:h-full relative overflow-hidden">
-                  <img alt="BuildKart warehouse" className="w-full h-full object-cover opacity-80 mix-blend-luminosity" src="https://lh3.googleusercontent.com/aida/AEtjO1U5Z2Zq3So5myMG9MLEAArot0zvc-gYNyDIZM5CYTywxbbe7LM1wK12Z32Bu_gvKPKfSnZzMsrumekm-cAtI5SdCY38DetZWjbOhcTIlNg_AwJLL3VgDEIZoOkPpCeYjgllChjF0uiRTsmxXVpY4Y9r0hirN7GwX-w_bShODuBvm8XY8ZlUWQYFTh4Y70jpHOXBHPI0YmgS41ymDXZwn9lii-9ukkUeaMWExupDnWseQ_pUQ3_nSTLQx7hs" />
+                  <img alt="BuildKart warehouse" className="w-full h-full object-cover opacity-80 mix-blend-luminosity" src="/Assets/facility.png" />
                 </div>
               </div>
             </div>
@@ -267,11 +271,11 @@ export default function Landing({ initialLoginOpen = false }) {
               {/* Item 1 */}
               <div className="rounded-2xl p-5 border border-slate-200/70 hover:border-slate-300 transition-all flex flex-col justify-between bg-[#fcfdfe]">
                 <div>
-                  <div className="h-36 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 mb-4 relative overflow-hidden">
-                    <span className="material-symbols-outlined text-[42px] text-slate-400">grid_view</span>
-                    <span className="absolute top-2 right-2 px-2 py-0.5 rounded bg-white text-[10px] font-semibold text-slate-800 border border-slate-200">-18%</span>
+                  <div className="h-36 rounded-xl bg-slate-100 mb-4 relative overflow-hidden">
+                    <img src="/Assets/building.png" alt="Kajaria Vitrified Slabs" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
+                    <span className="absolute top-2 right-2 px-2 py-0.5 rounded bg-slate-950/80 backdrop-blur text-[10px] font-semibold text-white shadow-sm">-18%</span>
                   </div>
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Masonry & Porcelain</span>
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Masonry &amp; Porcelain</span>
                   <h5 className="font-display font-bold text-slate-900 text-sm mt-1">Kajaria Vitrified Slabs 1200x600</h5>
                   <div className="flex items-baseline gap-2 mt-2">
                     <span className="text-sm font-bold text-slate-950">₹82 / sq.ft</span>
@@ -285,11 +289,11 @@ export default function Landing({ initialLoginOpen = false }) {
               {/* Item 2 */}
               <div className="rounded-2xl p-5 border border-slate-200/70 hover:border-slate-300 transition-all flex flex-col justify-between bg-[#fcfdfe]">
                 <div>
-                  <div className="h-36 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 mb-4 relative overflow-hidden">
-                    <span className="material-symbols-outlined text-[42px] text-slate-400">shower</span>
-                    <span className="absolute top-2 right-2 px-2 py-0.5 rounded bg-white text-[10px] font-semibold text-slate-800 border border-slate-200">-24%</span>
+                  <div className="h-36 rounded-xl bg-slate-100 mb-4 relative overflow-hidden">
+                    <img src="/Assets/plumbing.png" alt="Kohler Concealed 3-Way Diverter" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
+                    <span className="absolute top-2 right-2 px-2 py-0.5 rounded bg-slate-950/80 backdrop-blur text-[10px] font-semibold text-white shadow-sm">-24%</span>
                   </div>
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Sanitary & Brass</span>
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Sanitary &amp; Brass</span>
                   <h5 className="font-display font-bold text-slate-900 text-sm mt-1">Kohler Concealed 3-Way Diverter</h5>
                   <div className="flex items-baseline gap-2 mt-2">
                     <span className="text-sm font-bold text-slate-950">₹14,990</span>
@@ -303,9 +307,9 @@ export default function Landing({ initialLoginOpen = false }) {
               {/* Item 3 */}
               <div className="rounded-2xl p-5 border border-slate-200/70 hover:border-slate-300 transition-all flex flex-col justify-between bg-[#fcfdfe]">
                 <div>
-                  <div className="h-36 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 mb-4 relative overflow-hidden">
-                    <span className="material-symbols-outlined text-[42px] text-slate-400">format_paint</span>
-                    <span className="absolute top-2 right-2 px-2 py-0.5 rounded bg-white text-[10px] font-semibold text-slate-800 border border-slate-200">-15%</span>
+                  <div className="h-36 rounded-xl bg-slate-100 mb-4 relative overflow-hidden">
+                    <img src="/Assets/painting.png" alt="Asian Paints Royale Matt" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
+                    <span className="absolute top-2 right-2 px-2 py-0.5 rounded bg-slate-950/80 backdrop-blur text-[10px] font-semibold text-white shadow-sm">-15%</span>
                   </div>
                   <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Coatings</span>
                   <h5 className="font-display font-bold text-slate-900 text-sm mt-1">Asian Paints Royale Matt (20L)</h5>
@@ -321,11 +325,11 @@ export default function Landing({ initialLoginOpen = false }) {
               {/* Item 4 */}
               <div className="rounded-2xl p-5 border border-slate-200/70 hover:border-slate-300 transition-all flex flex-col justify-between bg-[#fcfdfe]">
                 <div>
-                  <div className="h-36 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 mb-4 relative overflow-hidden">
-                    <span className="material-symbols-outlined text-[42px] text-slate-400">bolt</span>
-                    <span className="absolute top-2 right-2 px-2 py-0.5 rounded bg-white text-[10px] font-semibold text-slate-800 border border-slate-200">-22%</span>
+                  <div className="h-36 rounded-xl bg-slate-100 mb-4 relative overflow-hidden">
+                    <img src="/Assets/electrical.png" alt="Finolex FR-LSH Copper Wire" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
+                    <span className="absolute top-2 right-2 px-2 py-0.5 rounded bg-slate-950/80 backdrop-blur text-[10px] font-semibold text-white shadow-sm">-22%</span>
                   </div>
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Conduit & Electric</span>
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Conduit &amp; Electric</span>
                   <h5 className="font-display font-bold text-slate-900 text-sm mt-1">Finolex FR-LSH Copper Wire 90m</h5>
                   <div className="flex items-baseline gap-2 mt-2">
                     <span className="text-sm font-bold text-slate-950">₹1,180</span>
@@ -335,169 +339,6 @@ export default function Landing({ initialLoginOpen = false }) {
                 <a href="https://build-kart-in-is6v.vercel.app/" target="_blank" rel="noopener noreferrer" className="mt-4 w-full py-2 rounded-xl bg-white hover:bg-slate-950 hover:text-white border border-slate-200 text-slate-900 text-xs font-semibold transition-all text-center block cursor-pointer">
                   Order on BuildKart →
                 </a>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* 4. TURNKEY BUNDLE */}
-        <section className="max-w-7xl mx-auto px-6 lg:px-10 py-12" id="bundle">
-          <div className="bg-white rounded-3xl p-8 sm:p-12 border border-slate-200/70 shadow-sm">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
-              <div className="lg:col-span-7 flex flex-col gap-5">
-                <div>
-                  <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-slate-100 text-slate-600 text-[11px] font-semibold tracking-wider uppercase mb-3">
-                    Synchronized Blueprint
-                  </span>
-                  <h3 className="text-3xl font-display font-bold text-slate-950 tracking-tight">
-                    Turnkey Master Bath Modernization
-                  </h3>
-                  <p className="text-sm text-slate-500 mt-2 leading-relaxed">
-                    We align BuildCart drops exactly 24 hours prior to master plumber arrival. No miscommunication, zero contractor downtime, and a clear itemized breakdown.
-                  </p>
-                </div>
-                {/* Ledger Table */}
-                <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5 divide-y divide-slate-200/80 text-xs">
-                  <div className="flex items-center justify-between pb-3 text-slate-400 uppercase font-semibold text-[10px] tracking-wider">
-                    <span>Synchronized Phase</span>
-                    <span>Audited Allocation</span>
-                  </div>
-                  <div className="flex items-center justify-between py-3">
-                    <span className="text-slate-800 font-medium">BuildCart Material Drop (Subway Porcelain, Kohler Brass, CPVC)</span>
-                    <span className="font-semibold text-slate-950">₹58,200</span>
-                  </div>
-                  <div className="flex items-center justify-between py-3">
-                    <span className="text-slate-800 font-medium">HouseServe Certified Trades (Tile Setting, Hydrostatic Pressure Test)</span>
-                    <span className="font-semibold text-slate-950">₹46,800</span>
-                  </div>
-                  <div className="flex items-center justify-between pt-3 text-slate-900 font-semibold">
-                    <span className="text-slate-600">5-Year Waterproofing Escrow Bond</span>
-                    <span className="text-emerald-700 font-bold">Included</span>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between pt-2">
-                  <div>
-                    <span className="text-[11px] uppercase tracking-wider text-slate-400 block font-medium">Total Turnkey Investment</span>
-                    <span className="text-2xl font-display font-bold text-slate-950">₹1,05,000</span>
-                    <span className="text-xs text-emerald-600 ml-2 font-medium">Saves ₹26,000 vs fragmented trades</span>
-                  </div>
-                  <button className="px-5 py-2.5 rounded-xl bg-slate-950 text-white text-xs font-semibold hover:bg-slate-800 transition-colors">
-                    Reserve Turnkey Window
-                  </button>
-                </div>
-              </div>
-              {/* Real Image Representation */}
-              <div className="lg:col-span-5">
-                <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-sm relative h-80 lg:h-96">
-                  <img alt="Modern site tile pallet and materials" className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1UTQcnpMo7W0KfXkms6FJidMo2tVOj7pL3vfWgs1XbJyvXFUftznS8gTfPtKXSxQLMAnmY65gvTLXJiXvSkUVKdmrDOg14XSjkpObnahSZh2MCRoAC2R3_Tes5-wODqyxKny9soaOuBDGBTn6UTzWzQvYOrYJ3kXcZy8J4UDxRNawwgPd7-CfVx5n3WI4_R7VxNE1F0Xytt810yTK1CR82RcfW_8cozldKNXP-gcmSt6Bxw8HwE-lLflIKh" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent"></div>
-                  <div className="absolute bottom-4 left-4 right-4 p-4 rounded-xl bg-white/95 backdrop-blur-md border border-slate-200/80 shadow-sm text-xs flex items-center justify-between">
-                    <div>
-                      <span className="font-bold text-slate-900 block">Subway & Architectural Brass Spec</span>
-                      <span className="text-slate-500 text-[11px]">Turnaround: 6 calibrated working days</span>
-                    </div>
-                    <span className="material-symbols-outlined text-slate-950 text-[20px]">task_alt</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* 5. VERIFIED PROPERTIES PORTFOLIO */}
-        <section className="max-w-7xl mx-auto px-6 lg:px-10 py-12" id="portfolio">
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 pb-4 border-b border-slate-200/80">
-            <div>
-              <span className="inline-block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Title-Audited Portfolios</span>
-              <h3 className="text-2xl font-display font-bold text-slate-950 tracking-tight">Verified Properties</h3>
-            </div>
-            <p className="text-sm text-slate-500 max-w-md mt-2 md:mt-0 font-normal">
-              Zero brokerage on direct seller listings, 30-step title auditing, and digital escrow closure.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Property 1 */}
-            <div className="bg-white rounded-2xl overflow-hidden border border-slate-200/70 shadow-sm flex flex-col justify-between">
-              <div>
-                <div className="relative h-56 w-full overflow-hidden bg-slate-100">
-                  <div className="w-full h-full bg-cover bg-center hover:scale-105 transition-transform duration-500" style={{ backgroundImage: `url("https://lh3.googleusercontent.com/aida-public/AB6AXuDTLfZW_RhrYBbdGpBnosy-Jc9Ba2uogT4ePg9zzwRZlTu5UBWRIhNsbvbtaQikTe-AjCcTOiJVPt04E5k6vv6iazWfzONmWxG3vQB4-KpvO5amX2cR8MzhMyktX6cWw_zyYjOnflddu6tvZE-BxxQHOHUKe5eikAMitw7qT6MNllUjul042LhrgThMPR1BomJ7IhKGPaklOxw2SVWquQr_ZtsQIKWIy1bg_yUXmcUrH8gD3HdeQW1GUQ")` }}></div>
-                  <div className="absolute top-3 left-3 flex gap-2">
-                    <span className="bg-slate-950 text-white text-[10px] font-semibold px-2 py-0.5 rounded">Verified Title</span>
-                    <span className="bg-white/90 backdrop-blur-sm text-slate-900 text-[10px] font-semibold px-2 py-0.5 rounded border border-slate-200">DLF Phase 5</span>
-                  </div>
-                  <div className="absolute bottom-3 right-3 bg-slate-950/85 backdrop-blur-sm text-white px-2.5 py-1 rounded-lg font-display font-bold text-sm">
-                    ₹1.85 Cr
-                  </div>
-                </div>
-                <div className="p-6">
-                  <h4 className="font-display font-bold text-slate-900 text-base">3 BHK Skyline High-Rise</h4>
-                  <p className="text-xs text-slate-500 mt-1">Gurugram, Golf Course Extension corridor</p>
-                  <div className="flex items-center gap-4 text-xs text-slate-600 mt-4 pt-4 border-t border-slate-100">
-                    <span>3 Bed</span>·<span>3 Bath</span>·<span>1,820 sq.ft</span>
-                  </div>
-                </div>
-              </div>
-              <div className="px-6 pb-6 pt-2">
-                <div className="rounded-xl bg-slate-50 p-3 text-[11px] text-slate-500 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-slate-950 text-[16px]">check_circle</span>
-                  <span>Includes pre-move HouseServe deep seal warranty.</span>
-                </div>
-              </div>
-            </div>
-            {/* Property 2 */}
-            <div className="bg-white rounded-2xl overflow-hidden border border-slate-200/70 shadow-sm flex flex-col justify-between">
-              <div>
-                <div className="relative h-56 w-full overflow-hidden bg-slate-100">
-                  <div className="w-full h-full bg-cover bg-center hover:scale-105 transition-transform duration-500" style={{ backgroundImage: `url("https://lh3.googleusercontent.com/aida-public/AB6AXuAq_H19Ic4d-I7JNglHDcl84blKpSfPWrW5baK1Yyo52qmPIIpu-YLpNTOhytrBVccYvLpR8tYF12K4bSufhGrQSzHmpqTgoVSGnOXtnv1ZGzgBCXcV0rGRREg1NrB2dRDyvYnkRKQZB83SGaJP-b0MUffZw8Y_1JHTq64P-fpvbfB7a_L7cyVmlMMZAQ4fb9o7_1U4K-oqwcMEn--0FkrlyHt7P81uZD7QFCDDeP2gh-p5AKdrja-esA")` }}></div>
-                  <div className="absolute top-3 left-3 flex gap-2">
-                    <span className="bg-slate-950 text-white text-[10px] font-semibold px-2 py-0.5 rounded">Verified Title</span>
-                    <span className="bg-white/90 backdrop-blur-sm text-slate-900 text-[10px] font-semibold px-2 py-0.5 rounded border border-slate-200">Whitefield</span>
-                  </div>
-                  <div className="absolute bottom-3 right-3 bg-slate-950/85 backdrop-blur-sm text-white px-2.5 py-1 rounded-lg font-display font-bold text-sm">
-                    ₹3.49 Cr
-                  </div>
-                </div>
-                <div className="p-6">
-                  <h4 className="font-display font-bold text-slate-900 text-base">4 BHK Architectural Villa</h4>
-                  <p className="text-xs text-slate-500 mt-1">Bengaluru, Palm Greens Enclave</p>
-                  <div className="flex items-center gap-4 text-xs text-slate-600 mt-4 pt-4 border-t border-slate-100">
-                    <span>4 Bed</span>·<span>4 Bath</span>·<span>3,200 sq.ft</span>
-                  </div>
-                </div>
-              </div>
-              <div className="px-6 pb-6 pt-2">
-                <div className="rounded-xl bg-slate-50 p-3 text-[11px] text-slate-500 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-slate-950 text-[16px]">check_circle</span>
-                  <span>Pre-engineered with BuildCart solar micro-grid.</span>
-                </div>
-              </div>
-            </div>
-            {/* Property 3 */}
-            <div className="bg-white rounded-2xl overflow-hidden border border-slate-200/70 shadow-sm flex flex-col justify-between">
-              <div>
-                <div className="relative h-56 w-full overflow-hidden bg-slate-100">
-                  <div className="w-full h-full bg-cover bg-center hover:scale-105 transition-transform duration-500" style={{ backgroundImage: `url("https://lh3.googleusercontent.com/aida-public/AB6AXuA1BXYCckQaUpkHziQp8mKRFJpUbRygOtuFTZjx3V84l3q4WAywvvWJqB6Q4rwoKY99FhN_17YE7XCI_-HN6Yd8GrnDBt8u4J_LvktFkiqjkzQ0r5pyf5rP3R1mBPMVNEX4TG1WVUJFD_CMQqCF6wbZSi8E3wB_XK8Qomly3hx-02jMvb0qPXYcs0-Ll4E9-xdWci0QWpMFbghoPpPztxtrvsTpNTqodfX7afacsFAFKG-PuqNZcKN52Q")` }}></div>
-                  <div className="absolute top-3 left-3 flex gap-2">
-                    <span className="bg-slate-950 text-white text-[10px] font-semibold px-2 py-0.5 rounded">Verified Title</span>
-                    <span className="bg-white/90 backdrop-blur-sm text-slate-900 text-[10px] font-semibold px-2 py-0.5 rounded border border-slate-200">Kharadi</span>
-                  </div>
-                  <div className="absolute bottom-3 right-3 bg-slate-950/85 backdrop-blur-sm text-white px-2.5 py-1 rounded-lg font-display font-bold text-sm">
-                    ₹89.00 L
-                  </div>
-                </div>
-                <div className="p-6">
-                  <h4 className="font-display font-bold text-slate-900 text-base">2 BHK Executive Urban Condo</h4>
-                  <p className="text-xs text-slate-500 mt-1">Pune, EON Free Zone Avenue</p>
-                  <div className="flex items-center gap-4 text-xs text-slate-600 mt-4 pt-4 border-t border-slate-100">
-                    <span>2 Bed</span>·<span>2 Bath</span>·<span>1,140 sq.ft</span>
-                  </div>
-                </div>
-              </div>
-              <div className="px-6 pb-6 pt-2">
-                <div className="rounded-xl bg-slate-50 p-3 text-[11px] text-slate-500 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-slate-950 text-[16px]">check_circle</span>
-                  <span>Digital escrow tenure with immediate registration.</span>
-                </div>
               </div>
             </div>
           </div>
@@ -558,6 +399,7 @@ export default function Landing({ initialLoginOpen = false }) {
           </div>
         </section>
       </main>
+      )}
 
       {/* CLEAN EDITORIAL FOOTER */}
       <footer className="w-full border-t border-slate-200 bg-white pt-14 pb-10">
@@ -614,6 +456,26 @@ export default function Landing({ initialLoginOpen = false }) {
       </footer>
 
       {openLogin && <Login close={() => setOpenLogin(false)} />}
+
+      {/* BOTTOM APP BAR (MOBILE) */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-[100] bg-white/90 backdrop-blur-xl border-t border-slate-200/60 flex items-center justify-around py-3 px-2 pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+        <button onClick={() => setActiveView("overview")} className={`flex flex-col items-center gap-1 ${activeView === "overview" ? "text-slate-950 font-bold" : "text-slate-500 hover:text-slate-900"}`}>
+          <span className="material-symbols-outlined text-[20px]">roofing</span>
+          <span className="text-[10px] font-medium tracking-wide">Overview</span>
+        </button>
+        <button onClick={() => setActiveView("houserve")} className={`flex flex-col items-center gap-1 ${activeView === "houserve" ? "text-slate-950 font-bold" : "text-slate-500 hover:text-slate-900"}`}>
+          <span className="material-symbols-outlined text-[20px]">home_repair_service</span>
+          <span className="text-[10px] font-medium tracking-wide">Houserve</span>
+        </button>
+        <a href="https://build-kart-in-is6v.vercel.app/" target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-1 text-slate-500 hover:text-slate-900">
+          <span className="material-symbols-outlined text-[20px]">shopping_cart</span>
+          <span className="text-[10px] font-medium tracking-wide">BuildKart</span>
+        </a>
+        <button onClick={() => setActiveView("properties")} className={`flex flex-col items-center gap-1 ${activeView === "properties" ? "text-slate-950 font-bold" : "text-slate-500 hover:text-slate-900"}`}>
+          <span className="material-symbols-outlined text-[20px]">apartment</span>
+          <span className="text-[10px] font-medium tracking-wide">Properties</span>
+        </button>
+      </nav>
     </div>
   );
 }

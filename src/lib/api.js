@@ -3,7 +3,17 @@
  * Replaces all Supabase .from() data calls.
  */
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
+export const getApiBase = () => {
+  if (import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL.trim() !== "") {
+    return import.meta.env.VITE_API_URL.replace(/\/+$/, "");
+  }
+  if (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+    return window.location.origin;
+  }
+  return "http://localhost:5000";
+};
+
+const API_BASE = getApiBase();
 
 function getToken() {
   return localStorage.getItem("auth_token") || "";
@@ -15,7 +25,8 @@ function authHeaders() {
 }
 
 async function request(path, options = {}) {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const base = getApiBase();
+  const res = await fetch(`${base}${path}`, {
     headers: {
       "Content-Type": "application/json",
       ...authHeaders(),

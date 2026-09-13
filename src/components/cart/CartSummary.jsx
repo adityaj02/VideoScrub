@@ -57,6 +57,7 @@ export default function CartSummary({
     bookingMetadata,
     onClearAll,
     profile,
+    onViewBookings,
 }) {
     const [checkoutStep, setCheckoutStep] = useState(() => Number(localStorage.getItem("checkout_step") || 0));
     const [selectedDate, setSelectedDate] = useState(() => localStorage.getItem("checkout_date") || "");
@@ -241,7 +242,7 @@ export default function CartSummary({
                             <span>Message Support on WhatsApp</span>
                         </button>
                         <button 
-                            onClick={() => { setCheckoutStep(0); setCurrentView('bookings'); }} 
+                            onClick={() => { setCheckoutStep(0); if (typeof onViewBookings === 'function') onViewBookings(); else setCurrentView('bookings'); }} 
                             className="w-full py-4 rounded-2xl border border-[#e2e8f0] bg-white hover:bg-[#f8fafc] font-bold text-xs uppercase tracking-wider text-[#0f172a] transition-colors"
                         >
                             View My Bookings
