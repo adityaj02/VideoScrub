@@ -7,18 +7,11 @@ export default function LoginFlow({ onClose }) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
-  const clientId =
-    import.meta.env.VITE_GOOGLE_CLIENT_ID ||
-    "559253584920-87p6g4bmjejahnr6ekk09cfobkiqkmgf.apps.googleusercontent.com";
-  const hasClientId = Boolean(clientId && clientId.trim() !== "");
-
   const handleGoogleSuccess = async (credentialResponse) => {
     setLoading(true);
     setMessage("");
-
     try {
-      const cred = credentialResponse?.credential || "demo_google_credential_dev";
-      await signInWithGoogle(cred);
+      await signInWithGoogle(credentialResponse.credential);
       onClose?.();
     } catch (err) {
       setMessage(err.message || "Sign-in failed. Please try again.");
@@ -28,55 +21,73 @@ export default function LoginFlow({ onClose }) {
   };
 
   const handleGoogleError = () => {
-    // If Google OAuth fails (e.g. invalid client_id on production), fallback gracefully
-    handleGoogleSuccess({ credential: "demo_google_credential_dev" });
+    setMessage("Google sign-in was cancelled or failed. Please try again.");
   };
 
   return (
-    <div className="glass login-card">
-      <h2 className="login-title">
-        Your Home,<br />
-        <span className="accent">Our Expertise</span>
-      </h2>
+    <div className="glass login-card" style={{ textAlign: "center" }}>
+      {/* Logo / Brand mark */}
+      <div style={{
+        width: 56,
+        height: 56,
+        borderRadius: 14,
+        background: "#292524",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        margin: "0 auto 20px",
+      }}>
+        <span style={{ color: "white", fontSize: 26, fontWeight: 900, fontFamily: "serif" }}>H</span>
+      </div>
 
-      <p className="company-brief">
-        Verified electricians, plumbers and home experts.
-        Sign in with Google to continue.
+      <h2 className="login-title" style={{ textAlign: "center" }}>Welcome Back</h2>
+
+      <p className="company-brief" style={{ textAlign: "center" }}>
+        Sign in with your Google account to continue to HouseServe.
       </p>
 
-      <div style={{ display: "flex", flexDirection: "column", items: "center", alignItems: "center", gap: "10px", marginTop: "16px" }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, marginTop: 8 }}>
         {loading ? (
-          <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "14px" }}>Signing you in...</p>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, color: "rgba(120,113,108,0.7)", fontSize: 14 }}>
+            <div style={{
+              width: 18, height: 18, borderRadius: "50%",
+              border: "2px solid rgba(217,119,6,0.3)",
+              borderTopColor: "#d97706",
+              animation: "spin 0.8s linear infinite"
+            }} />
+            Signing you in…
+          </div>
         ) : (
           <>
-            {hasClientId && (
-              <GoogleLogin
-                onSuccess={handleGoogleSuccess}
-                onError={handleGoogleError}
-                theme="filled_black"
-                shape="pill"
-                size="large"
-                text="continue_with"
-                width="320"
-              />
-            )}
-            <button
-              type="button"
-              onClick={() => handleGoogleSuccess({ credential: "demo_google_credential_dev" })}
-              className="w-full max-w-[320px] py-3 px-4 rounded-full bg-white text-slate-900 hover:bg-slate-100 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg cursor-pointer"
-            >
-              <img src="https://www.google.com/favicon.ico" alt="Google" className="w-4 h-4" />
-              <span>Sign in as adityajmarch020304@gmail.com</span>
-            </button>
+            {/* Google Sign-In button — works for ALL users */}
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={handleGoogleError}
+              theme="filled_black"
+              shape="pill"
+              size="large"
+              text="signin_with"
+              width="320"
+            />
+
+            <p style={{ fontSize: 11, color: "rgba(120,113,108,0.5)", marginTop: 4 }}>
+              Sign in with any Google account
+            </p>
           </>
         )}
       </div>
 
       {message && (
-        <p style={{ marginTop: "12px", color: "#fca5a5", fontSize: "13px", textAlign: "center" }}>
+        <p style={{ marginTop: 14, color: "#dc2626", fontSize: 13, textAlign: "center" }}>
           {message}
         </p>
       )}
+
+      <style>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }

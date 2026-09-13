@@ -8,17 +8,11 @@ export default function LoginPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const { signInWithGoogle } = useAuth();
 
-  const hasClientId = Boolean(
-    import.meta.env.VITE_GOOGLE_CLIENT_ID && import.meta.env.VITE_GOOGLE_CLIENT_ID.trim() !== ""
-  );
-
   const handleGoogleSuccess = async (credentialResponse) => {
     setLoading(true);
     setErrorMessage("");
-
     try {
-      const cred = credentialResponse?.credential || "demo_google_credential_dev";
-      await signInWithGoogle(cred);
+      await signInWithGoogle(credentialResponse.credential);
       window.location.href = "/";
     } catch (err) {
       setErrorMessage(err.message || "Unable to sign in. Please try again.");
@@ -28,15 +22,14 @@ export default function LoginPage() {
   };
 
   const handleGoogleError = () => {
-    // If Google OAuth fails (e.g. invalid client_id on production), fallback gracefully
-    handleGoogleSuccess({ credential: "demo_google_credential_dev" });
+    setErrorMessage("Google sign-in was cancelled or failed. Please try again.");
   };
 
   return (
     <div className="relative min-h-screen w-full flex items-center justify-center overflow-hidden bg-slate-950">
       <VideoBackground theme="dark" blur={0} brightness={0.85} opacity={1} />
       
-      {/* Subtle background overlay to keep video clear while enhancing card readability */}
+      {/* Subtle background overlay */}
       <div className="absolute inset-0 bg-black/35 pointer-events-none z-[1]" />
 
       <div className="relative z-10 w-full max-w-[420px] overflow-hidden rounded-[32px] border border-white/20 !bg-slate-950/85 p-8 text-white shadow-2xl backdrop-blur-2xl sm:p-10 md:p-12">
@@ -46,7 +39,7 @@ export default function LoginPage() {
           <div className="mb-6 flex justify-center">
             <img 
               src="/Assets/LOGO.png" 
-              alt="Logo" 
+              alt="HouseServe Logo" 
               className="w-20 h-20 object-contain drop-shadow-2xl" 
             />
           </div>
@@ -64,36 +57,41 @@ export default function LoginPage() {
 
           <div className="flex flex-col items-center gap-3 w-full">
             {loading ? (
-              <p className="py-3 text-xs font-bold uppercase tracking-widest text-slate-300">
-                Signing you in...
-              </p>
+              <div className="flex items-center gap-3 py-3 text-xs font-bold uppercase tracking-widest text-slate-300">
+                <div style={{
+                  width: 16, height: 16, borderRadius: "50%",
+                  border: "2px solid rgba(255,255,255,0.2)",
+                  borderTopColor: "white",
+                  animation: "spin 0.8s linear infinite"
+                }} />
+                Signing you in…
+              </div>
             ) : (
               <>
-                {hasClientId && (
-                  <GoogleLogin
-                    onSuccess={handleGoogleSuccess}
-                    onError={handleGoogleError}
-                    theme="filled_black"
-                    shape="pill"
-                    size="large"
-                    text="continue_with"
-                    width="300"
-                  />
-                )}
-
-                <button
-                  type="button"
-                  onClick={() => handleGoogleSuccess({ credential: "demo_google_credential_dev" })}
-                  className="w-full max-w-[300px] py-3.5 px-4 rounded-full bg-white text-slate-950 hover:bg-slate-100 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl transition-all active:scale-95 cursor-pointer"
-                >
-                  <img src="https://www.google.com/favicon.ico" alt="Google" className="w-4 h-4" />
-                  <span>Sign in as adityajmarch020304@gmail.com</span>
-                </button>
+                {/* Google Sign-In — works for all Google accounts */}
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={handleGoogleError}
+                  theme="filled_black"
+                  shape="pill"
+                  size="large"
+                  text="signin_with"
+                  width="300"
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  Sign in with any Google account
+                </p>
               </>
             )}
           </div>
         </div>
       </div>
+
+      <style>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }
