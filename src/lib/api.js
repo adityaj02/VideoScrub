@@ -8,7 +8,7 @@ export const getApiBase = () => {
     return import.meta.env.VITE_API_URL.replace(/\/+$/, "");
   }
   if (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
-    return window.location.origin;
+    return "https://videoscrub-backend.onrender.com";
   }
   return "http://localhost:5000";
 };
@@ -26,19 +26,45 @@ function authHeaders() {
 
 async function request(path, options = {}) {
   const base = getApiBase();
-  const res = await fetch(`${base}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...authHeaders(),
-      ...options.headers,
-    },
-    ...options,
-  });
+  const url = `${base}${path}`;
+  let res;
 
-  const data = await res.json();
+  try {
+    res = await fetch(url, {
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders(),
+        ...options.headers,
+      },
+      ...options,
+    });
+  } catch (netErr) {
+    throw new Error(`Unable to connect to backend server (${base}). Please verify backend status.`);
+  }
+
+  const contentType = res.headers.get("content-type") || "";
+  let data;
+
+  if (contentType.includes("application/json")) {
+    try {
+      data = await res.json();
+    } catch (parseErr) {
+      throw new Error(
+        `Received non-JSON response from backend (${res.status}). Please verify backend server on port 5000 is active.`
+      );
+    }
+  } else {
+    if (!res.ok) {
+      throw new Error(
+        `Backend API returned status ${res.status}. If deployed on Vercel, please set VITE_API_URL to your Render backend URL.`
+      );
+    }
+    const text = await res.text();
+    data = { message: text };
+  }
 
   if (!res.ok) {
-    throw new Error(data.error || `Request failed: ${res.status}`);
+    throw new Error(data?.error || data?.message || `Request failed: ${res.status}`);
   }
 
   return data;

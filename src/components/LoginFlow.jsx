@@ -7,9 +7,10 @@ export default function LoginFlow({ onClose }) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
-  const hasClientId = Boolean(
-    import.meta.env.VITE_GOOGLE_CLIENT_ID && import.meta.env.VITE_GOOGLE_CLIENT_ID.trim() !== ""
-  );
+  const clientId =
+    import.meta.env.VITE_GOOGLE_CLIENT_ID ||
+    "559253584920-87p6g4bmjejahnr6ekk09cfobkiqkmgf.apps.googleusercontent.com";
+  const hasClientId = Boolean(clientId && clientId.trim() !== "");
 
   const handleGoogleSuccess = async (credentialResponse) => {
     setLoading(true);

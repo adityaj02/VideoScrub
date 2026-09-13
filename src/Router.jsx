@@ -8,7 +8,9 @@ import App from "./App";
 import BlogPage from "./components/blog/BlogPage";
 import MarketplaceDashboard from "./pages/MarketplaceDashboard";
 
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
+const GOOGLE_CLIENT_ID =
+  import.meta.env.VITE_GOOGLE_CLIENT_ID ||
+  "559253584920-87p6g4bmjejahnr6ekk09cfobkiqkmgf.apps.googleusercontent.com";
 
 export default function Router() {
     const content = (
