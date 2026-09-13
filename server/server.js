@@ -6,26 +6,30 @@ const cors = require("cors");
 
 const app = express();
 
-const allowedOrigins = (process.env.CORS_ORIGINS || "http://localhost:5173,https://www.houserve.in,https://houserve.in")
+const allowedOrigins = (
+  process.env.CORS_ORIGINS ||
+  "http://localhost:5173,https://www.houserve.in,https://houserve.in"
+)
   .split(",")
-  .map((origin) => origin.trim())
+  .map((o) => o.trim())
   .filter(Boolean);
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (
-        !origin ||
+      // Allow requests with no origin (e.g. mobile apps, curl, Render health checks)
+      if (!origin) return callback(null, true);
+
+      const isAllowed =
         origin.startsWith("http://localhost:") ||
         origin.startsWith("http://127.0.0.1:") ||
-        origin.endsWith("houserve.in") ||
-        allowedOrigins.includes(origin)
-      ) {
-        callback(null, true);
-        return;
-      }
+        origin.endsWith(".houserve.in") ||
+        origin === "https://houserve.in" ||
+        origin === "https://www.houserve.in" ||
+        origin.endsWith(".vercel.app") ||
+        allowedOrigins.includes(origin);
 
-      callback(null, true);
+      callback(null, isAllowed);
     },
     credentials: true,
   })

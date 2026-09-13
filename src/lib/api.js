@@ -4,12 +4,11 @@
  */
 
 export const getApiBase = () => {
-  if (import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL.trim() !== "") {
-    return import.meta.env.VITE_API_URL.replace(/\/+$/, "");
+  const url = import.meta.env.VITE_API_URL;
+  if (url && url.trim() !== "") {
+    return url.replace(/\/+$/, "");
   }
-  if (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
-    return "https://videoscrub-backend.onrender.com";
-  }
+  // Local development fallback
   return "http://localhost:5000";
 };
 

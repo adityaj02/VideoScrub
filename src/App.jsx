@@ -7,9 +7,7 @@ import Profile from "./pages/Profile";
 import Dashboard from "./pages/Dashboard";
 import LoginPage from "./pages/LoginPage";
 
-const GOOGLE_CLIENT_ID =
-  import.meta.env.VITE_GOOGLE_CLIENT_ID ||
-  "559253584920-87p6g4bmjejahnr6ekk09cfobkiqkmgf.apps.googleusercontent.com";
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
 
 function AppRoutes() {
   const { isAuthenticated, profileComplete, loading } = useAuth();
